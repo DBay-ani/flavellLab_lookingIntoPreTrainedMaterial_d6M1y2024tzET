@@ -1,4 +1,4 @@
-# unify all IR models
+ unify all IR models
 
 from model.swinir import *
 
@@ -101,7 +101,9 @@ class UniModel(nn.Module):
     def forward(self, x, tsk=0):
         if tsk > 0:
             self.task = tsk
-        
+       
+        # DBayani,m4htw16d15M1y2025tzET, this is the place where things can be put together
+
         # ~~~~~~~~~~~~ Head ~~~~~~~~~~~~~~~ #
         if self.task == 1:
             x = self.check_image_size(x)
@@ -150,6 +152,8 @@ class UniModel(nn.Module):
             x = self.conv_before_upsample0(x)
             x = self.upsample(x)
             x = self.conv_last0(x)
+
+        # m9htw16d15M1y2025tzET: could just swap the two conditional guards below.
         elif self.task == 4:
             x = xfe
             x = self.conv_before_upsample0(x)
