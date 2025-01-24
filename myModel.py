@@ -1,12 +1,13 @@
 import faulthandler
 
+
 faulthandler.enable()
 
 import torch
 import utility
 import loss
 
-torch.backends.cudnn.enabled = False
+torch.backends.cudnn.enabled = True
 import argparse
 from mydata import FlouresceneVCD, Flouresceneproj
 from torch.utils.data import dataloader
@@ -22,77 +23,6 @@ from mydata import normalize, PercentileNormalizer
 # from tifffile import imsave
 
 rp = os.path.dirname(__file__)
-
-
-def options():
-    parser = argparse.ArgumentParser(description='FMIR Model')
-    parser.add_argument('--model', default='Uni-SwinIR', help='model name')
-    parser.add_argument('--test_only', action='store_true', default=test_only, help='set this option to test the model')
-    parser.add_argument('--task', type=int, default=task)
-    parser.add_argument('--resume', type=int, default=0, help='-2:best;-1:latest; 0:pretrain; >0: resume')
-    parser.add_argument('--pre_train', type=str, default=pre_train, help='pre-trained model directory')
-    parser.add_argument('--save', type=str, default=savename, help='_itefile name to save')
-    
-    # Data specifications
-    parser.add_argument('--test_every', type=int, default=test_every)
-    parser.add_argument('--print_every', type=int, default=100, help='')
-    parser.add_argument('--data_test', type=str, default=testset, help='demo image directory')
-    parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train')
-    parser.add_argument('--batch_size', type=int, default=batch, help='input batch size for training')
-    parser.add_argument('--patch_size', type=int, default=patch, help='input batch size for training')
-    parser.add_argument('--rgb_range', type=int, default=1, help='maximum value of RGBn_colors')
-    parser.add_argument('--n_colors', type=int, default=1, help='')
-    parser.add_argument('--datamin', type=int, default=0)
-    parser.add_argument('--datamax', type=int, default=100)
-    # Loss specifications
-    parser.add_argument('--loss', type=str, default='1*L1', help='loss function configuration')
-    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--decay', type=str, default='100', help='learning rate decay type')
-    
-    parser.add_argument('--cpu', action='store_true', default=False, help='')
-    parser.add_argument('--load', type=str, default='', help='file name to load')
-    
-    parser.add_argument('--n_GPUs', type=int, default=1, help='number of GPUs')
-    parser.add_argument('--n_resblocks', type=int, default=8, help='number of residual blocks')
-    parser.add_argument('--n_feats', type=int, default=32, help='number of feature maps')
-    parser.add_argument('--save_models', action='store_true', default=True, help='save all intermediate models')
-    
-    parser.add_argument('--scale', type=str, default='1', help='super resolution scale')
-    parser.add_argument('--chop', action='store_true', default=True, help='enable memory-efficient forward')
-    parser.add_argument('--self_ensemble', action='store_true', help='use self-ensemble method for test')
-    
-    # Model specifications
-    parser.add_argument('--act', type=str, default='relu', help='activation function')
-    parser.add_argument('--res_scale', type=float, default=0.1, help='residual scaling')
-    parser.add_argument('--dilation', action='store_true', help='use dilated convolution')
-    parser.add_argument('--precision', type=str, default='single',
-                        choices=('single', 'half'), help='FP precision for test (single | half)')
-    
-    parser.add_argument('--seed', type=int, default=1, help='random seed')
-    
-    # Optimization specifications
-    parser.add_argument('--gamma', type=float, default=0.5, help='learning rate decay factor for step decay')
-    parser.add_argument('--optimizer', default='ADAM',
-                        choices=('SGD', 'ADAM', 'RMSprop'),
-                        help='optimizer to use (SGD | ADAM | RMSprop)')
-    parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum')
-    parser.add_argument('--betas', type=tuple, default=(0.9, 0.999), help='ADAM beta')
-    parser.add_argument('--epsilon', type=float, default=1e-8,
-                        help='ADAM epsilon for numerical stability')
-    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
-    parser.add_argument('--gclip', type=float, default=0, help='gradient clipping threshold (0 = no clipping)')
-    
-    args = parser.parse_args()
-    
-    args.scale = list(map(lambda x: int(x), args.scale.split('+')))
-    
-    for arg in vars(args):
-        if vars(args)[arg] == 'True':
-            vars(args)[arg] = True
-        elif vars(args)[arg] == 'False':
-            vars(args)[arg] = False
-    
-    return args
 
 
 def get_data_loader(t, testonly=False):
@@ -526,44 +456,104 @@ class Trainer():
             return self.epoch <= self.args.epochs
 
 
+
+
+def options():
+    parser = argparse.ArgumentParser(description='FMIR Model')
+    parser.add_argument('--model', default='Uni-SwinIR', help='model name')
+    parser.add_argument('--test_only', action='store_true', default=test_only, help='set this option to test the model')
+    parser.add_argument('--task', type=int, default=task)
+    parser.add_argument('--resume', type=int, default=0, help='-2:best;-1:latest; 0:pretrain; >0: resume')
+    parser.add_argument('--pre_train', type=str, default=pre_train, help='pre-trained model directory')
+    parser.add_argument('--save', type=str, default=savename, help='_itefile name to save')
+    
+    # Data specifications
+    parser.add_argument('--test_every', type=int, default=test_every)
+    parser.add_argument('--print_every', type=int, default=100, help='')
+    parser.add_argument('--data_test', type=str, default=testset, help='demo image directory')
+    parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train')
+    parser.add_argument('--batch_size', type=int, default=batch, help='input batch size for training')
+    parser.add_argument('--patch_size', type=int, default=patch, help='input batch size for training')
+    parser.add_argument('--rgb_range', type=int, default=1, help='maximum value of RGBn_colors')
+    parser.add_argument('--n_colors', type=int, default=1, help='')
+    parser.add_argument('--datamin', type=int, default=0)
+    parser.add_argument('--datamax', type=int, default=100)
+    # Loss specifications
+    parser.add_argument('--loss', type=str, default='1*L1', help='loss function configuration')
+    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
+    parser.add_argument('--decay', type=str, default='100', help='learning rate decay type')
+    
+    parser.add_argument('--cpu', action='store_true', default=False, help='')
+    parser.add_argument('--load', type=str, default='', help='file name to load')
+    
+    parser.add_argument('--n_GPUs', type=int, default=1, help='number of GPUs')
+    parser.add_argument('--n_resblocks', type=int, default=8, help='number of residual blocks')
+    parser.add_argument('--n_feats', type=int, default=32, help='number of feature maps')
+    parser.add_argument('--save_models', action='store_true', default=True, help='save all intermediate models')
+    
+    parser.add_argument('--scale', type=str, default='1', help='super resolution scale')
+    parser.add_argument('--chop', action='store_true', default=True, help='enable memory-efficient forward')
+    parser.add_argument('--self_ensemble', action='store_true', help='use self-ensemble method for test')
+    
+    # Model specifications
+    parser.add_argument('--act', type=str, default='relu', help='activation function')
+    parser.add_argument('--res_scale', type=float, default=0.1, help='residual scaling')
+    parser.add_argument('--dilation', action='store_true', help='use dilated convolution')
+    parser.add_argument('--precision', type=str, default='single',
+                        choices=('single', 'half'), help='FP precision for test (single | half)')
+    
+    parser.add_argument('--seed', type=int, default=1, help='random seed')
+    
+    # Optimization specifications
+    parser.add_argument('--gamma', type=float, default=0.5, help='learning rate decay factor for step decay')
+    parser.add_argument('--optimizer', default='ADAM',
+                        choices=('SGD', 'ADAM', 'RMSprop'),
+                        help='optimizer to use (SGD | ADAM | RMSprop)')
+    parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum')
+    parser.add_argument('--betas', type=tuple, default=(0.9, 0.999), help='ADAM beta')
+    parser.add_argument('--epsilon', type=float, default=1e-8,
+                        help='ADAM epsilon for numerical stability')
+    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
+    parser.add_argument('--gclip', type=float, default=0, help='gradient clipping threshold (0 = no clipping)')
+    
+    args = parser.parse_args()
+    
+    args.scale = list(map(lambda x: int(x), args.scale.split('+')))
+    
+    for arg in vars(args):
+        if vars(args)[arg] == 'True':
+            vars(args)[arg] = True
+        elif vars(args)[arg] == 'False':
+            vars(args)[arg] = False
+    
+    return args
+
+
+
+
+
 if __name__ == '__main__':
     task = 1
     test_only = False  # True  #
     pre_train = './experiment/Uni-SwinIR/model_best.pt'
     
     test_every = 1000
-    srdatapath = '/home/user2/dataset/microscope/CSB/DataSet/BioSR_WF_to_SIM/DL-SR-main/dataset/'
-    denoisedatapath = '/home/user2/dataset/microscope/CSB/DataSet/'
-    isodatapath = '/home/user2/dataset/microscope/CSB/DataSet/Isotropic/'
     prodatapath = '/home/user2/dataset/microscope/CSB/DataSet/'
-    voldatapath = '/home/user2/dataset/microscope/VCD/vcdnet/'
     
-    if task == 1:  # SR
-        testset = 'ER'  # 'CCPs'  # 'Microtubules'  # 'F-actin'  #
-        batch = 1
-        patch = 128
-    elif task == 2:  # denoise
-        condition = 1
-        patch = 64
-        batch = 32
-        testset = 'Denoising_Planaria'  # testset = 'Denoising_Tribolium'
-    elif task == 3:  # isotropic
-        testset = 'Isotropic_Liver'
-        batch = 32
-        patch = 128
-    elif task == 4:  # projection
-        condition = 2
-        batch = 4
-        patch = 64
-        testset = 'Projection_Flywing'
-    elif task == 5:  # 2D to 3D
-        batch = 4
-        patch = 64
-        testset = 'VCD'
-        subtestset = 'to_predict'
-    
+
+    condition = 2
+    batch = 4
+    patch = 64
+    testset = 'Projection_Flywing'
+    ### elif task == 5:  # 2D to 3D
+    ###     batch = 4
+    ###     patch = 64
+    ###     testset = 'VCD'
+    ###     subtestset = 'to_predict'
+ 
     savename = 'Uni-SwinIR%s/' % testset
     
+
     args = options()
     torch.manual_seed(args.seed)
     checkpoint = utility.checkpoint(args)

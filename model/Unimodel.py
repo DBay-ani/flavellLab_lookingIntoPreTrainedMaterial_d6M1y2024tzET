@@ -1,4 +1,4 @@
- unify all IR models
+# unify all IR models
 
 from model.swinir import *
 
