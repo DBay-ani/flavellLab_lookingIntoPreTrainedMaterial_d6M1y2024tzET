@@ -1,0 +1,5 @@
+[core]
+    remote = origin
+    autostage = true
+['remote "origin"']
+    url = /storage/fs/store1/david/DVC_data_caches/lookingIntoPreTrainedMaterial_d6M1y2024tzET
