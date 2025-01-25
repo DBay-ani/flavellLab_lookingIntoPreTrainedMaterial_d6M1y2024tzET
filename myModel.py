@@ -9,7 +9,7 @@ import loss
 
 torch.backends.cudnn.enabled = True
 import argparse
-from mydata import FlouresceneVCD, Flouresceneproj
+from mydata import FlouresceneVCD, Flouresceneproj, MyExampleDataLoader
 from torch.utils.data import dataloader
 import model
 
@@ -530,6 +530,8 @@ def options():
 
 
 
+ 
+
 
 
 if __name__ == '__main__':
@@ -553,7 +555,7 @@ if __name__ == '__main__':
  
     savename = 'Uni-SwinIR%s/' % testset
     
-
+    """
     args = options()
     torch.manual_seed(args.seed)
     checkpoint = utility.checkpoint(args)
@@ -564,3 +566,17 @@ if __name__ == '__main__':
         train()
     else:
         test()
+    """
+
+    patchSizeHere=10; # args.patch_size
+    batchSizeHere=5; # args.batch_size
+    loader_train = dataloader.DataLoader(
+            MyExampleDataLoader(),
+            batch_size=batchSizeHere,
+            shuffle=False,
+            pin_memory=False,
+            num_workers=0)
+    
+    # A=enumerate(loader_train)
+    for index, x in enumerate(loader_train):
+        print(str(index)+","+str([str(w.shape) for w in x[:2]]) + "," +str([str(w)[:100] for w in x])); #str([w.shape for w in x]) + "," + str(x)[:100])
