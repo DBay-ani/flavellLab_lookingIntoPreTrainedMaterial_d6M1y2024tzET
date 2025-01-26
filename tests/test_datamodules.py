@@ -3,7 +3,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from src.data.mnist_datamodule import MNISTDataModule
+from src.data.UNiFluorInferDataModule_datamodule import UNiFluorInferDataModule;
+
 
 
 @pytest.mark.parametrize("batch_size", [32, 128])

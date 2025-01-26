@@ -1,12 +1,12 @@
 [submodule "UNiFMIR"]
-	path = UNiFMIR
+	path = submodules/UNiFMIR
 	url = https://github.com/cxm12/UNiFMIR.git
 [submodule "Swin-Transformer"]
-	path = Swin-Transformer
+	path = submodules/Swin-Transformer
 	url = https://github.com/microsoft/Swin-Transformer.git
 [submodule "pretrain_UNiFMIR"]
-	path = pretrain_UNiFMIR
+	path = submodules/pretrain_UNiFMIR
 	url = https://github.com/cxm12/UNiFMIR.git
 [submodule "private_BrainAlignNet"]
-	path = private_BrainAlignNet
+	path = submodules/private_BrainAlignNet
 	url = git@github.com:flavell-lab/private_BrainAlignNet.git
