@@ -1,4 +1,5 @@
-_target_: src.models.mnist_module.MNISTLitModule
+_target_: src.models.UNiFMIR_fluorescenceInfe.
+/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/configs/model/UNiFMIR_fluorescenceInfer.yaml
 
 # TODO: put my model here and specify the load-order or pre-training parameters as one of the settings here....
 
