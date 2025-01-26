@@ -84,11 +84,11 @@ def get_data_loader(t, testonly=False):
 def train():
     _model = model.Model(args, checkpoint, unimodel, epochall=-1, dataper=1.0, rp=rp)
     _loss = loss.Loss(args, checkpoint)
-    loader_train, loader_test = get_data_loader(t=task)
+    # loader_train, loader_test = get_data_loader(t=task)
     
-    t = Trainer(args, loader_train, loader_test, args.data_test, _model, _loss, checkpoint)
-    while t.terminate():
-        t.trainUni(tsk=task)
+    # t = Trainer(args, loader_train, loader_test, args.data_test, _model, _loss, checkpoint)
+    # while t.terminate():
+    #     t.trainUni(tsk=task)
     
     checkpoint.done()
 
@@ -472,63 +472,87 @@ class Trainer():
 
 
 
-
+import copy;
 
 @hydra.main(config_path="../configs", config_name="train")
 def main(cfg: DictConfig):
 
-    lightning.seed_everything(cfg.seed, workers=True)
+    torch.manual_seed(cfg.seed)
+    lightning.seed_everything(cfg.seed, workers=True)   
+    
+    # checkpoint = utility.checkpoint(cfg.args)
+    # assert checkpoint.ok
+    
+    A=cfg.args;
+    print(str(A))
+    B=copy.deepcopy(A);
+    B.inch=1200;
+    print(str((B.inch,A.inch)))
+    exit();
+    print(str(cfg.args.pre_train))
+    AAAA = torch.load(cfg.args.pre_train.upDim)
+    BBBB = torch.load(cfg.args.pre_train.projection)
+    #### print(str(AAAA)[:1000])
+    #print(str(AAAA.keys()))
+    #print(set([str(type(x)) for x in AAAA.values()]))
+    listOfKeys_AAAA=[(k, v.shape) for indx, (k, v) in enumerate(AAAA.items())];#list(AAAA.keys());
+    listOfKeys_BBBB=[(k, v.shape) for indx, (k, v) in enumerate(BBBB.items())];#list(BBBB.keys());
+    print(str(len(set(listOfKeys_AAAA).difference(listOfKeys_BBBB))))
+    print(str(len(set(listOfKeys_BBBB).difference(listOfKeys_AAAA))))
 
-    """
-    task = 1
-    test_only = False  # True  #
-    pre_train = './experiment/Uni-SwinIR/model_best.pt'
+    """for thisKey in ( listOfKeys[:10] + listOfKeys[-10:] ):
+        print(str(thisKey) + str(AAAA[thisKey].shape))"""
     
-    test_every = 1000
-    prodatapath = '/home/user2/dataset/microscope/CSB/DataSet/'
-    
+    # print(str([x for x in listOfKeys if ("conv_firstproj" in x) ]),flush=True)
+    unimodel = model.UniModel(cfg.args); # , tsk=task)
+    # print(str([x.__dict__ for x in unimodel.parameters()])[:1000]); # __dict__.keys())) #_parameters))
+    nameSet=set()
+    for index, (name, param) in enumerate(unimodel.named_parameters()):
+        print(name, param.shape)
+        nameSet.add((name, param.shape)) # name
+    print("\n\n\n"+str([len(nameSet.intersection(listOfKeys_AAAA)), len(nameSet.difference(listOfKeys_AAAA)), len(set(listOfKeys_AAAA).difference(nameSet))]))
+    print("\n\n\n"+str([len(nameSet.intersection(listOfKeys_BBBB)), len(nameSet.difference(listOfKeys_BBBB)), len(set(listOfKeys_BBBB).difference(nameSet))]))
 
-    condition = 2
-    batch = 4
-    patch = 64
-    testset = 'Projection_Flywing'
-    ### elif task == 5:  # 2D to 3D
-    ###     batch = 4
-    ###     patch = 64
-    ###     testset = 'VCD'
-    ###     subtestset = 'to_predict'
- 
-    savename = 'Uni-SwinIR%s/' % testset
-    
-    """
-    args = cfg.args;
-    torch.manual_seed(args.seed)
-    
-    """
-    checkpoint = utility.checkpoint(args)
-    assert checkpoint.ok
-    
-    unimodel = model.UniModel(args, tsk=task)
-    if not test_only:
+    print("\n\n" + str(nameSet.difference(listOfKeys_AAAA))[:1000])
+
+    print("\n\n" + str(len((set(listOfKeys_AAAA).intersection(listOfKeys_BBBB)).difference(nameSet))))
+
+    for thisVal in ((set(listOfKeys_AAAA).intersection(listOfKeys_BBBB)).difference(nameSet)):
+        print(str(thisVal),flush=True)
+
+    for x in unimodel.parameters():
+        # print(str(x.flatten()[0]))
+        x.data = np.nan * x.data ;
+        print(str(x.flatten()[0]))
+
+    unimodel.load_state_dict(AAAA, strict=False);
+    unimodel.load_state_dict(BBBB, strict=False);
+    assert(len(list(unimodel.parameters())) == len(list(unimodel.named_parameters())) )
+    print(str(len(list(unimodel.parameters()))) +"  ,   " + str(len(list(unimodel.named_parameters()))))
+    #for x in unimodel.parameters():
+    #    print(str(x.flatten()[0]))
+    for thisName, x in unimodel.named_parameters():
+        print(thisName + " : " + str(x.flatten()[0]))
+
+    """if not test_only:
         train()
     else:
-        test()
-    """
-
-    """
-
-    patchSizeHere=10; # args.patch_size
-    batchSizeHere=5; # args.batch_size
-    loader_train = dataloader.DataLoader(
-            MyExampleDataLoader(),
-            batch_size=batchSizeHere,
-            shuffle=False,
-            pin_memory=False,
-            num_workers=0)
+        test()"""
     
-    # A=enumerate(loader_train)
-    for index, x in enumerate(loader_train):
-        print(str(index)+","+str([str(w.shape) for w in x[:2]]) + "," +str([str(w)[:100] for w in x])); #str([w.shape for w in x]) + "," + str(x)[:100])
+
+    
+    
+    """    # args.patch_size
+        loader_train = dataloader.DataLoader(
+                MyExampleDataLoader(),
+                batch_size=args.batch_size,
+                shuffle=False,
+                pin_memory=False,
+                num_workers=0)
+        
+        # A=enumerate(loader_train)
+        for index, x in enumerate(loader_train):
+            print(str(index)+","+str([str(w.shape) for w in x[:2]]) + "," +str([str(w)[:100] for w in x])); #str([w.shape for w in x]) + "," + str(x)[:100])
     """
 
 if __name__ == "__main__":

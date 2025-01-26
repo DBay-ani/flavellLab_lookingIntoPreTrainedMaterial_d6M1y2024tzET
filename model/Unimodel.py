@@ -14,7 +14,7 @@ def make_model(args):
 
 
 class UniModel(nn.Module):
-    def __init__(self, args, tsk=1, img_size=64, patch_size=1,
+    def __init__(self, args, img_size=64, patch_size=1,
                  embed_dim=180 // 2, depths=[6, 6, 6], num_heads=[6, 6, 6],
                  window_size=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
@@ -24,16 +24,16 @@ class UniModel(nn.Module):
         self.img_range = 1
         self.mean = torch.zeros(1, 1, 1, 1)
         self.window_size = window_size
-        self.task = tsk
 
 
 
 
         # 4 Projection
-        args.n_resblocks = 64
-        args.n_feats = 256
-        args.inch = 50
-        self.project = Projhead(args=args)
+        argsForProjections=copy.deepcopy(args)
+        argsForProjections.n_resblocks = 64
+        argsForProjections.n_feats = 256
+        ### args.inch = 50
+        self.project = Projhead(args=argsForProjections)
         self.conv_firstproj = nn.Conv2d(1, embed_dim, 3, 1, 1)
         
         # 5 2D to 3D
@@ -41,6 +41,8 @@ class UniModel(nn.Module):
         self.conv_firstv = nn.Conv2d(61, embed_dim, 3, 1, 1)
         self.conv_before_upsamplev = nn.Sequential(nn.Conv2d(embed_dim, embed_dim, 3, 1, 1), nn.LeakyReLU(inplace=True))
         self.conv_lastv = nn.Conv2d(embed_dim, 61, 3, 1, 1)
+
+        ### self.example12345=nn.Conv2d(embed_dim, 61, 3, 1, 1)
         
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
@@ -92,9 +94,7 @@ class UniModel(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
         return x
     
-    def forward(self, x, tsk=0):
-        if tsk > 0:
-            self.task = tsk
+    def forward(self, x):
        
         # DBayani,m4htw16d15M1y2025tzET, this is the place where things can be put together
 
