@@ -1,7 +1,11 @@
 import faulthandler
 
-
 faulthandler.enable()
+
+import typing
+
+import lightning
+import hydra
 
 import torch
 import utility
@@ -9,7 +13,7 @@ import loss
 
 torch.backends.cudnn.enabled = True
 import argparse
-from mydata import FlouresceneVCD, Flouresceneproj
+from mydata import FlouresceneVCD, Flouresceneproj, MyExampleDataLoader
 from torch.utils.data import dataloader
 import model
 
@@ -21,6 +25,17 @@ from utility import savecolorim
 import numpy as np
 from mydata import normalize, PercentileNormalizer
 # from tifffile import imsave
+
+import logging
+import hydra
+
+from omegaconf import DictConfig, OmegaConf
+# from pytorch_lightning import Trainer
+from hydra.utils import instantiate
+
+
+logger = logging.getLogger(__name__)
+
 
 rp = os.path.dirname(__file__)
 
@@ -69,11 +84,11 @@ def get_data_loader(t, testonly=False):
 def train():
     _model = model.Model(args, checkpoint, unimodel, epochall=-1, dataper=1.0, rp=rp)
     _loss = loss.Loss(args, checkpoint)
-    loader_train, loader_test = get_data_loader(t=task)
+    # loader_train, loader_test = get_data_loader(t=task)
     
-    t = Trainer(args, loader_train, loader_test, args.data_test, _model, _loss, checkpoint)
-    while t.terminate():
-        t.trainUni(tsk=task)
+    # t = Trainer(args, loader_train, loader_test, args.data_test, _model, _loss, checkpoint)
+    # while t.terminate():
+    #     t.trainUni(tsk=task)
     
     checkpoint.done()
 
@@ -457,110 +472,89 @@ class Trainer():
 
 
 
+import copy;
 
-def options():
-    parser = argparse.ArgumentParser(description='FMIR Model')
-    parser.add_argument('--model', default='Uni-SwinIR', help='model name')
-    parser.add_argument('--test_only', action='store_true', default=test_only, help='set this option to test the model')
-    parser.add_argument('--task', type=int, default=task)
-    parser.add_argument('--resume', type=int, default=0, help='-2:best;-1:latest; 0:pretrain; >0: resume')
-    parser.add_argument('--pre_train', type=str, default=pre_train, help='pre-trained model directory')
-    parser.add_argument('--save', type=str, default=savename, help='_itefile name to save')
-    
-    # Data specifications
-    parser.add_argument('--test_every', type=int, default=test_every)
-    parser.add_argument('--print_every', type=int, default=100, help='')
-    parser.add_argument('--data_test', type=str, default=testset, help='demo image directory')
-    parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train')
-    parser.add_argument('--batch_size', type=int, default=batch, help='input batch size for training')
-    parser.add_argument('--patch_size', type=int, default=patch, help='input batch size for training')
-    parser.add_argument('--rgb_range', type=int, default=1, help='maximum value of RGBn_colors')
-    parser.add_argument('--n_colors', type=int, default=1, help='')
-    parser.add_argument('--datamin', type=int, default=0)
-    parser.add_argument('--datamax', type=int, default=100)
-    # Loss specifications
-    parser.add_argument('--loss', type=str, default='1*L1', help='loss function configuration')
-    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--decay', type=str, default='100', help='learning rate decay type')
-    
-    parser.add_argument('--cpu', action='store_true', default=False, help='')
-    parser.add_argument('--load', type=str, default='', help='file name to load')
-    
-    parser.add_argument('--n_GPUs', type=int, default=1, help='number of GPUs')
-    parser.add_argument('--n_resblocks', type=int, default=8, help='number of residual blocks')
-    parser.add_argument('--n_feats', type=int, default=32, help='number of feature maps')
-    parser.add_argument('--save_models', action='store_true', default=True, help='save all intermediate models')
-    
-    parser.add_argument('--scale', type=str, default='1', help='super resolution scale')
-    parser.add_argument('--chop', action='store_true', default=True, help='enable memory-efficient forward')
-    parser.add_argument('--self_ensemble', action='store_true', help='use self-ensemble method for test')
-    
-    # Model specifications
-    parser.add_argument('--act', type=str, default='relu', help='activation function')
-    parser.add_argument('--res_scale', type=float, default=0.1, help='residual scaling')
-    parser.add_argument('--dilation', action='store_true', help='use dilated convolution')
-    parser.add_argument('--precision', type=str, default='single',
-                        choices=('single', 'half'), help='FP precision for test (single | half)')
-    
-    parser.add_argument('--seed', type=int, default=1, help='random seed')
-    
-    # Optimization specifications
-    parser.add_argument('--gamma', type=float, default=0.5, help='learning rate decay factor for step decay')
-    parser.add_argument('--optimizer', default='ADAM',
-                        choices=('SGD', 'ADAM', 'RMSprop'),
-                        help='optimizer to use (SGD | ADAM | RMSprop)')
-    parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum')
-    parser.add_argument('--betas', type=tuple, default=(0.9, 0.999), help='ADAM beta')
-    parser.add_argument('--epsilon', type=float, default=1e-8,
-                        help='ADAM epsilon for numerical stability')
-    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
-    parser.add_argument('--gclip', type=float, default=0, help='gradient clipping threshold (0 = no clipping)')
-    
-    args = parser.parse_args()
-    
-    args.scale = list(map(lambda x: int(x), args.scale.split('+')))
-    
-    for arg in vars(args):
-        if vars(args)[arg] == 'True':
-            vars(args)[arg] = True
-        elif vars(args)[arg] == 'False':
-            vars(args)[arg] = False
-    
-    return args
+@hydra.main(config_path="../configs", config_name="train")
+def main(cfg: DictConfig):
 
-
-
-
-
-if __name__ == '__main__':
-    task = 1
-    test_only = False  # True  #
-    pre_train = './experiment/Uni-SwinIR/model_best.pt'
+    torch.manual_seed(cfg.seed)
+    lightning.seed_everything(cfg.seed, workers=True)   
     
-    test_every = 1000
-    prodatapath = '/home/user2/dataset/microscope/CSB/DataSet/'
+    # checkpoint = utility.checkpoint(cfg.args)
+    # assert checkpoint.ok
     
+    A=cfg.args;
+    print(str(A))
+    B=copy.deepcopy(A);
+    B.inch=1200;
+    print(str((B.inch,A.inch)))
+    exit();
+    print(str(cfg.args.pre_train))
+    AAAA = torch.load(cfg.args.pre_train.upDim)
+    BBBB = torch.load(cfg.args.pre_train.projection)
+    #### print(str(AAAA)[:1000])
+    #print(str(AAAA.keys()))
+    #print(set([str(type(x)) for x in AAAA.values()]))
+    listOfKeys_AAAA=[(k, v.shape) for indx, (k, v) in enumerate(AAAA.items())];#list(AAAA.keys());
+    listOfKeys_BBBB=[(k, v.shape) for indx, (k, v) in enumerate(BBBB.items())];#list(BBBB.keys());
+    print(str(len(set(listOfKeys_AAAA).difference(listOfKeys_BBBB))))
+    print(str(len(set(listOfKeys_BBBB).difference(listOfKeys_AAAA))))
 
-    condition = 2
-    batch = 4
-    patch = 64
-    testset = 'Projection_Flywing'
-    ### elif task == 5:  # 2D to 3D
-    ###     batch = 4
-    ###     patch = 64
-    ###     testset = 'VCD'
-    ###     subtestset = 'to_predict'
- 
-    savename = 'Uni-SwinIR%s/' % testset
+    """for thisKey in ( listOfKeys[:10] + listOfKeys[-10:] ):
+        print(str(thisKey) + str(AAAA[thisKey].shape))"""
     
+    # print(str([x for x in listOfKeys if ("conv_firstproj" in x) ]),flush=True)
+    unimodel = model.UniModel(cfg.args); # , tsk=task)
+    # print(str([x.__dict__ for x in unimodel.parameters()])[:1000]); # __dict__.keys())) #_parameters))
+    nameSet=set()
+    for index, (name, param) in enumerate(unimodel.named_parameters()):
+        print(name, param.shape)
+        nameSet.add((name, param.shape)) # name
+    print("\n\n\n"+str([len(nameSet.intersection(listOfKeys_AAAA)), len(nameSet.difference(listOfKeys_AAAA)), len(set(listOfKeys_AAAA).difference(nameSet))]))
+    print("\n\n\n"+str([len(nameSet.intersection(listOfKeys_BBBB)), len(nameSet.difference(listOfKeys_BBBB)), len(set(listOfKeys_BBBB).difference(nameSet))]))
 
-    args = options()
-    torch.manual_seed(args.seed)
-    checkpoint = utility.checkpoint(args)
-    assert checkpoint.ok
-    
-    unimodel = model.UniModel(args, tsk=task)
-    if not test_only:
+    print("\n\n" + str(nameSet.difference(listOfKeys_AAAA))[:1000])
+
+    print("\n\n" + str(len((set(listOfKeys_AAAA).intersection(listOfKeys_BBBB)).difference(nameSet))))
+
+    for thisVal in ((set(listOfKeys_AAAA).intersection(listOfKeys_BBBB)).difference(nameSet)):
+        print(str(thisVal),flush=True)
+
+    for x in unimodel.parameters():
+        # print(str(x.flatten()[0]))
+        x.data = np.nan * x.data ;
+        print(str(x.flatten()[0]))
+
+    unimodel.load_state_dict(AAAA, strict=False);
+    unimodel.load_state_dict(BBBB, strict=False);
+    assert(len(list(unimodel.parameters())) == len(list(unimodel.named_parameters())) )
+    print(str(len(list(unimodel.parameters()))) +"  ,   " + str(len(list(unimodel.named_parameters()))))
+    #for x in unimodel.parameters():
+    #    print(str(x.flatten()[0]))
+    for thisName, x in unimodel.named_parameters():
+        print(thisName + " : " + str(x.flatten()[0]))
+
+    """if not test_only:
         train()
     else:
-        test()
+        test()"""
+    
+
+    
+    
+    """    # args.patch_size
+        loader_train = dataloader.DataLoader(
+                MyExampleDataLoader(),
+                batch_size=args.batch_size,
+                shuffle=False,
+                pin_memory=False,
+                num_workers=0)
+        
+        # A=enumerate(loader_train)
+        for index, x in enumerate(loader_train):
+            print(str(index)+","+str([str(w.shape) for w in x[:2]]) + "," +str([str(w)[:100] for w in x])); #str([w.shape for w in x]) + "," + str(x)[:100])
+    """
+
+if __name__ == "__main__":
+    main()
+

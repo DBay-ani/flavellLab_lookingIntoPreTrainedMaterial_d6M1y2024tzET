@@ -13,9 +13,26 @@ sys.path.append('..')
 from csbdeep.utils import normalize, axes_dict, axes_check_and_normalize, backend_channels_last, move_channel_for_backend
 
 
-datamin, datamax = 0, 100  #
 
+class MyExampleDataLoader(data.Dataset):
+    def __init__(self):
+        self.confocalVolumeDims=[322,212,65];
+        self.numChannels_obs=1;
+        self.numChannels_label=3;
+        self.numberInstances=23;
+        return;
 
+    def __getitem__(self, idx):
+        obs=np.zeros([self.numChannels_obs] + self.confocalVolumeDims)
+        target=np.zeros([self.numChannels_label] + self.confocalVolumeDims)
+        filename="";
+        obs[:,:,:,:] = idx;
+        target[:,:,:,:] = idx+1;
+        return obs, target, filename
+    
+    def __len__(self):
+        return self.numberInstances;
+    
 
 def load_training_data(file, validation_split=0, axes=None, n_images=None, verbose=False):
     """Load training data from file in ``.npz`` format.
