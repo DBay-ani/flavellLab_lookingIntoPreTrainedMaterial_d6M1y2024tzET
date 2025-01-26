@@ -931,7 +931,8 @@ class Projhead(nn.Module):
             else:
                 res = self.body[i](res)
         res += x
-        
+      
+        # DBayani, m46htw15d15M1y2025tzET- looks like we can chop at the below...
         x = self.tl(res)
         # x = self.add_mean(x)
         

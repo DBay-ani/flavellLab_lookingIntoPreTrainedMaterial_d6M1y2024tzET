@@ -3,6 +3,10 @@
 from model.swinir import *
 
 
+
+
+
+
 def make_model(args):
     args.n_resblocks = 64
     args.n_feats = 256
@@ -10,7 +14,7 @@ def make_model(args):
 
 
 class UniModel(nn.Module):
-    def __init__(self, args, tsk=1, img_size=64, patch_size=1,
+    def __init__(self, args, img_size=64, patch_size=1,
                  embed_dim=180 // 2, depths=[6, 6, 6], num_heads=[6, 6, 6],
                  window_size=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
@@ -20,23 +24,16 @@ class UniModel(nn.Module):
         self.img_range = 1
         self.mean = torch.zeros(1, 1, 1, 1)
         self.window_size = window_size
-        self.task = tsk
-        
-        # 1 SR
-        self.conv_firstsr = nn.Conv2d(1, embed_dim, 3, 1, 1)
-        self.upsamplesr = Upsample(srscale, num_feat)
-        
-        # 2 denoise
-        self.conv_firstdT = nn.Conv2d(5, embed_dim, 3, 1, 1)
-        
-        # 3 iso
-        self.conv_firstiso = nn.Conv2d(1, embed_dim, 3, 1, 1)
-        
+
+
+
+
         # 4 Projection
-        args.n_resblocks = 64
-        args.n_feats = 256
-        args.inch = 50
-        self.project = Projhead(args=args)
+        argsForProjections=copy.deepcopy(args)
+        argsForProjections.n_resblocks = 64
+        argsForProjections.n_feats = 256
+        ### args.inch = 50
+        self.project = Projhead(args=argsForProjections)
         self.conv_firstproj = nn.Conv2d(1, embed_dim, 3, 1, 1)
         
         # 5 2D to 3D
@@ -44,6 +41,8 @@ class UniModel(nn.Module):
         self.conv_firstv = nn.Conv2d(61, embed_dim, 3, 1, 1)
         self.conv_before_upsamplev = nn.Sequential(nn.Conv2d(embed_dim, embed_dim, 3, 1, 1), nn.LeakyReLU(inplace=True))
         self.conv_lastv = nn.Conv2d(embed_dim, 61, 3, 1, 1)
+
+        ### self.example12345=nn.Conv2d(embed_dim, 61, 3, 1, 1)
         
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
@@ -76,9 +75,6 @@ class UniModel(nn.Module):
         self.norm = norm_layer(embed_dim)
         self.conv_after_body = nn.Conv2d(embed_dim, embed_dim, 3, 1, 1)
         
-        self.conv_before_upsample0 = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
-        self.upsample = Upsample(1, num_feat)
-        self.conv_last0 = nn.Conv2d(num_feat, 1, 3, 1, 1)
         
         self.apply(self._init_weights)
     
@@ -98,72 +94,37 @@ class UniModel(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
         return x
     
-    def forward(self, x, tsk=0):
-        if tsk > 0:
-            self.task = tsk
-        
+    def forward(self, x):
+       
+        # DBayani,m4htw16d15M1y2025tzET, this is the place where things can be put together
+
         # ~~~~~~~~~~~~ Head ~~~~~~~~~~~~~~~ #
-        if self.task == 1:
-            x = self.check_image_size(x)
-            self.mean = self.mean.type_as(x)
-            x = (x - self.mean) * self.img_range
-            x = self.conv_firstsr(x)
-        elif self.task == 2:
-            x = self.check_image_size(x)
-            self.mean = self.mean.type_as(x)
-            x = (x - self.mean) * self.img_range
-            x = self.conv_firstdT(x)
-        elif self.task == 3:
-            x = self.check_image_size(x)
-            self.mean = self.mean.type_as(x)
-            x = (x - self.mean) * self.img_range
-            x = self.conv_firstiso(x)
-        elif self.task == 4:
-            x2d, closs = self.project(x)
-            x2d = self.check_image_size(x2d)
-            self.mean = self.mean.type_as(x2d)
-            x2d = (x2d - self.mean) * self.img_range
-            x = self.conv_firstproj(x2d)
-        elif self.task == 5:
-            x = self.check_image_size(x)
-            self.mean = self.mean.type_as(x)
-            x = (x - self.mean) * self.img_range
-            xunet = self.conv_first0(x)
-            x = self.conv_firstv(xunet)
+        x2d, closs = self.project(x)
+        x2d = self.check_image_size(x2d)
+        self.mean = self.mean.type_as(x2d)
+        x2d = (x2d - self.mean) * self.img_range
+        x = self.conv_firstproj(x2d)
+
         
         # ~~~~~~~~~~~~ Feature enhancement ~~~~~~~~~~~~~
         xfe = self.conv_after_body(self.forward_features(x))
         
         # ~~~~~~~~~~~~ Tail ~~~~~~~~~~~~~~~ #
-        if self.task == 1:
-            x = xfe + x
-            x = self.conv_before_upsample0(x)
-            x = self.upsamplesr(x)
-            x = self.conv_last0(x)
-        elif self.task == 2:
-            x = xfe + x
-            x = self.conv_before_upsample0(x)
-            x = self.upsample(x)
-            x = self.conv_last0(x)
-        elif self.task == 3:
-            x = xfe + x
-            x = self.conv_before_upsample0(x)
-            x = self.upsample(x)
-            x = self.conv_last0(x)
-        elif self.task == 4:
-            x = xfe
-            x = self.conv_before_upsample0(x)
-            x = self.conv_last0(x)
-            return x2d, x / self.img_range + self.mean + x2d  # , closs
-        elif self.task == 5:
-            x = xfe
-            x = self.conv_before_upsamplev(x)
-            x = self.conv_lastv(x)
-            return xunet, x / self.img_range + self.mean
+        # DBayani m9htw16d15M1y2025tzET
+        #
+        # elif self.task == 4:
+        #    x = xfe
+        #    x = self.conv_before_upsample0(x)
+        #    x = self.conv_last0(x)
+        #    return x2d, x / self.img_range + self.mean + x2d  # , closs
+        x = xfe
+        x = self.conv_before_upsamplev(x)
+        x = self.conv_lastv(x)
+        return xunet, x / self.img_range + self.mean
         
-        x = x / self.img_range + self.mean
-        
-        return x
+        #x = x / self.img_range + self.mean
+        #
+        #return x
     
     def forward_features(self, x):
         x_size = (x.shape[2], x.shape[3])
