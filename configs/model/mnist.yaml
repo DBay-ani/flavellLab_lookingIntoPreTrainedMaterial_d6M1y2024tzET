@@ -1,5 +1,7 @@
 _target_: src.models.mnist_module.MNISTLitModule
 
+# TODO: put my model here and specify the load-order or pre-training parameters as one of the settings here....
+
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
