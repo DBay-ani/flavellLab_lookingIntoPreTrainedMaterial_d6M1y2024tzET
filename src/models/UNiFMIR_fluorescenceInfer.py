@@ -21,7 +21,6 @@ import loss
 
 torch.backends.cudnn.enabled = True
 import argparse
-from mydata import FlouresceneVCD, Flouresceneproj, MyExampleDataLoader
 from torch.utils.data import dataloader
 import model
 
@@ -31,7 +30,7 @@ import torch.nn.utils as utils
 # import imageio
 from utility import savecolorim
 import numpy as np
-from mydata import normalize, PercentileNormalizer
+from src.data.components.UNiFluorInferDataset import normalize, PercentileNormalizer
 # from tifffile import imsave
 
 import logging
@@ -151,8 +150,8 @@ class UNiFluorInferModule(LightningModule):
         x, y = batch
         logits = self.forward(x)
         loss = self.criterion(logits, y)
-        preds = torch.argmax(logits, dim=1)
-        return loss, preds, y
+        # preds = torch.argmax(logits, dim=1)
+        return loss, logits, y
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
@@ -257,5 +256,3 @@ class UNiFluorInferModule(LightningModule):
         return {"optimizer": optimizer}
 
 
-if __name__ == "__main__":
-    _ = MNISTLitModule(None, None, None, None)

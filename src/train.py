@@ -53,25 +53,14 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     :return: A tuple with metrics and dict with all instantiated objects.
     """
 
-    # set the default device across all Pytorch tensors
-    torch.set_default_device(
-        torch.device(cfg.default_device)
-    )
-
-    # set seed for random number generators in pytorch, numpy and python.random
-    if cfg.get("seed"):
-        L.seed_everything(cfg.seed, workers=True)
 
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
     datamodule.setup();
-    for x in datamodule.data_train:
-        print(str(x)[:100],flush=True);
-    time.sleep(1000);
 
 
     # log.info(f"Instantiating model <{cfg.model._target_}>")
-    # model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model)
 
     log.info("Instantiating callbacks...")
     callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
@@ -85,7 +74,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     object_dict = {
         "cfg": cfg,
         "datamodule": datamodule,
-        # "model": model,
+        "model": model,
         "callbacks": callbacks,
         "logger": logger,
         "trainer": trainer,
@@ -97,7 +86,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
     if cfg.get("train"):
         log.info("Starting training!")
-        # trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
 
     train_metrics = trainer.callback_metrics
 
@@ -115,7 +104,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     # merge train and test metrics
     metric_dict = {**train_metrics, **test_metrics}
 
-    return metric_dict
+    return metric_dict, object_dict
 
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml")
@@ -125,6 +114,18 @@ def main(cfg: DictConfig): # -> Optional[float]:
     :param cfg: DictConfig configuration composed by Hydra.
     :return: Optional[float] with optimized metric value.
     """
+
+
+
+    # set the default device across all Pytorch tensors
+    torch.set_default_device(
+        torch.device(cfg.default_device)
+    )
+
+    # set seed for random number generators in pytorch, numpy and python.random
+    if cfg.get("seed"):
+        L.seed_everything(cfg.seed, workers=True)
+
     # apply extra utilities
     # (e.g. ask for tags if none are provided in cfg, print cfg tree, etc.)
     extras(cfg)

@@ -143,7 +143,7 @@ class UNiFluorInferDataModule(LightningDataModule):
             self.data_train, self.data_val, self.data_test = random_split(
                 dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
                 lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator(default_device).manual_seed(42),
+                generator=torch.Generator(device=default_device).manual_seed(42),
             )            
 
     def train_dataloader(self) -> DataLoader[Any]:

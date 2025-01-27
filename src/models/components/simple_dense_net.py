@@ -9,8 +9,6 @@ class SimpleDenseNet(nn.Module):
         self,
         input_size: int = 784,
         lin1_size: int = 256,
-        lin2_size: int = 256,
-        lin3_size: int = 256,
         output_size: int = 10,
     ) -> None:
         """Initialize a `SimpleDenseNet` module.
@@ -23,6 +21,7 @@ class SimpleDenseNet(nn.Module):
         """
         super().__init__()
 
+        """
         self.model = nn.Sequential(
             nn.Linear(input_size, lin1_size),
             nn.BatchNorm1d(lin1_size),
@@ -35,6 +34,12 @@ class SimpleDenseNet(nn.Module):
             nn.ReLU(),
             nn.Linear(lin3_size, output_size),
         )
+        """
+        self.model = nn.Sequential(
+            nn.Linear(input_size, lin1_size,dtype=torch.float16),
+            nn.ReLU(), # dtype=torch.float16),
+            nn.Linear(lin1_size, output_size,dtype=torch.float16)
+        );
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.
@@ -42,13 +47,17 @@ class SimpleDenseNet(nn.Module):
         :param x: The input tensor.
         :return: A tensor of predictions.
         """
-        batch_size, channels, width, height = x.size()
+        batch_size, numChannels_obs, xSize, ySize, zSize = x.size()
+
 
         # (batch, 1, width, height) -> (batch, 1*width*height)
         x = x.view(batch_size, -1)
 
-        return self.model(x)
+        yInitial= self.model(x)
 
+        yFinal=yInitial.view(batch_size, 3, xSize, ySize, zSize)
+
+        return yFinal ;
 
 if __name__ == "__main__":
     _ = SimpleDenseNet()

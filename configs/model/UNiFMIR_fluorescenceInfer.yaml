@@ -1,4 +1,4 @@
-_target_: src.models.UNiFMIR_fluorescenceInfer.
+_target_: src.models.UNiFMIR_fluorescenceInfer.UNiFluorInferModule
 
 # TODO: put my model here and specify the load-order or pre-training parameters as one of the settings here....
 
@@ -17,11 +17,9 @@ scheduler:
 
 net:
   _target_: src.models.components.simple_dense_net.SimpleDenseNet
-  input_size: 784
-  lin1_size: 64
-  lin2_size: 128
-  lin3_size: 64
-  output_size: 10
+  input_size: 4437160  # (x,y,z)=(322,212,65)
+  lin1_size: 22
+  output_size: 13311480 # (channels) * (x,y,z) = 3 * (322,212,65)
 
 # compile model for faster training with pytorch 2.0
 compile: false
