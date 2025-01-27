@@ -9,17 +9,17 @@ import os
 import numpy as np
 from tifffile import imread, imsave
 from scipy.ndimage.interpolation import zoom
-sys.path.append('..')
+sys.path.append('../../..')
 from csbdeep.utils import normalize, axes_dict, axes_check_and_normalize, backend_channels_last, move_channel_for_backend
 
 
 
-class MyExampleDataLoader(data.Dataset):
-    def __init__(self):
+class UNiFluorInferDataset(data.Dataset):
+    def __init__(self,numberInstances=23):
         self.confocalVolumeDims=[322,212,65];
         self.numChannels_obs=1;
         self.numChannels_label=3;
-        self.numberInstances=23;
+        self.numberInstances=numberInstances;
         return;
 
     def __getitem__(self, idx):

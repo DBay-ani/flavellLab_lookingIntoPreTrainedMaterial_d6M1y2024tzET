@@ -5,6 +5,7 @@ from lightning import LightningDataModule
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
+from src.data.components.UNiFluorInferDataset import UNiFluorInferDataset; 
 
 
 class UNiFluorInferDataModule(LightningDataModule):
@@ -83,10 +84,9 @@ class UNiFluorInferDataModule(LightningDataModule):
     @property
     def num_classes(self) -> int:
         """Get the number of classes.
-
-        :return: The number of MNIST classes (10).
         """
-        return 10
+        raise NotImplementedError();
+        return
 
     def prepare_data(self) -> None:
         """Download data if needed. Lightning ensures that `self.prepare_data()` is called only
@@ -96,8 +96,10 @@ class UNiFluorInferDataModule(LightningDataModule):
 
         Do not use it to assign state (self.x = y).
         """
-        MNIST(self.hparams.data_dir, train=True, download=True)
-        MNIST(self.hparams.data_dir, train=False, download=True)
+        #raise NotImplementedError();
+        #MNIST(self.hparams.data_dir, train=True, download=True)
+        #MNIST(self.hparams.data_dir, train=False, download=True)
+        return;
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -109,8 +111,12 @@ class UNiFluorInferDataModule(LightningDataModule):
 
         :param stage: The stage to setup. Either `"fit"`, `"validate"`, `"test"`, or `"predict"`. Defaults to ``None``.
         """
+
+
         # Divide batch size by the number of devices.
         if self.trainer is not None:
+            if(self.trainer.world_size > 1):
+                raise NotImplementedError("We currently do not support multimachine training or data preperation for UNiFluorInfer");
             if self.hparams.batch_size % self.trainer.world_size != 0:
                 raise RuntimeError(
                     f"Batch size ({self.hparams.batch_size}) is not divisible by the number of devices ({self.trainer.world_size})."
@@ -119,6 +125,9 @@ class UNiFluorInferDataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
+
+            # Below is an example PyTorch Lightning provided:
+            """
             trainset = MNIST(self.hparams.data_dir, train=True, transform=self.transforms)
             testset = MNIST(self.hparams.data_dir, train=False, transform=self.transforms)
             dataset = ConcatDataset(datasets=[trainset, testset])
@@ -127,6 +136,12 @@ class UNiFluorInferDataModule(LightningDataModule):
                 lengths=self.hparams.train_val_test_split,
                 generator=torch.Generator().manual_seed(42),
             )
+            """
+            self.data_train, self.data_val, self.data_test = random_split(
+                dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
+                lengths=self.hparams.train_val_test_split,
+                generator=torch.Generator().manual_seed(42),
+            )            
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
@@ -193,4 +208,4 @@ class UNiFluorInferDataModule(LightningDataModule):
 
 
 if __name__ == "__main__":
-    _ = MNISTDataModule()
+    _ = UNiFluorInferDataModule()

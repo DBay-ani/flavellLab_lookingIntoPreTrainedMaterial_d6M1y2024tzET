@@ -49,7 +49,7 @@ rp = os.path.dirname(__file__)
 
 
 
-class MNISTLitModule(LightningModule):
+class UNiFluorInferModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
 
     A `LightningModule` implements 8 key methods:
@@ -88,6 +88,7 @@ class MNISTLitModule(LightningModule):
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
         compile: bool,
+        args
     ) -> None:
         """Initialize a `MNISTLitModule`.
 
