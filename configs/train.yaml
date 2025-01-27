@@ -5,7 +5,7 @@
 defaults:
   - _self_
   - data: UNiFluorInferDataModule
-  # - model: UNiFluorInferModule
+  - model: null  #UNiFluorInferModule
   - callbacks: default
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default
@@ -48,4 +48,4 @@ ckpt_path: null
 # seed for random number generators in pytorch, numpy and python.random
 seed: 1234
 
-      
+default_device: "cuda:2"

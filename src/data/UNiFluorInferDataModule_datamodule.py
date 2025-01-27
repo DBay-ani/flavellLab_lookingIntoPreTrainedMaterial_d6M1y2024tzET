@@ -137,10 +137,13 @@ class UNiFluorInferDataModule(LightningDataModule):
                 generator=torch.Generator().manual_seed(42),
             )
             """
+            default_device=torch.zeros(0).device; # hack for dealing with Pytorch version 2.1 that
+                # we are stuck with due to ANTSUN dependencies. In Pytorch version 2.5, there is the
+                # function torch.get_default_device() .
             self.data_train, self.data_val, self.data_test = random_split(
                 dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
                 lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator().manual_seed(42),
+                generator=torch.Generator(default_device).manual_seed(42),
             )            
 
     def train_dataloader(self) -> DataLoader[Any]:
