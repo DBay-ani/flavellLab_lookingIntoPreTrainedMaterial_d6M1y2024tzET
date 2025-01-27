@@ -26,8 +26,8 @@ class UNiFluorInferDataset(data.Dataset):
         obs=torch.zeros([self.numChannels_obs] + self.confocalVolumeDims,dtype=torch.float16)
         target=torch.zeros([self.numChannels_label] + self.confocalVolumeDims,dtype=torch.float16)
         filename="";
-        obs[:,:,:,:] = idx;
-        target[:,:,:,:] = idx+1;
+        # obs[:,:,:,:] = idx;
+        # target[:,:,:,:] = idx+1;
         return obs, target ; #, filename
     
     def __len__(self):

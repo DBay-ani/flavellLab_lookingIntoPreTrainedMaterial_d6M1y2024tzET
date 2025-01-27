@@ -53,6 +53,7 @@ class UNiFluorInferDataModule(LightningDataModule):
         data_dir: str = "data/",
         train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
         batch_size: int = 64,
+        device: str="",
         num_workers: int = 0,
         pin_memory: bool = False,
     ) -> None:
@@ -80,6 +81,8 @@ class UNiFluorInferDataModule(LightningDataModule):
         self.data_test: Optional[Dataset] = None
 
         self.batch_size_per_device = batch_size
+
+        self.default_device=device;
 
     @property
     def num_classes(self) -> int:
@@ -137,13 +140,13 @@ class UNiFluorInferDataModule(LightningDataModule):
                 generator=torch.Generator().manual_seed(42),
             )
             """
-            default_device=torch.zeros(0).device; # hack for dealing with Pytorch version 2.1 that
-                # we are stuck with due to ANTSUN dependencies. In Pytorch version 2.5, there is the
-                # function torch.get_default_device() .
+            ### default_device=torch.zeros(0).device; # hack for dealing with Pytorch version 2.1 that
+            ###     # we are stuck with due to ANTSUN dependencies. In Pytorch version 2.5, there is the
+            ###     # function torch.get_default_device() .
             self.data_train, self.data_val, self.data_test = random_split(
                 dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
                 lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator(device=default_device).manual_seed(42),
+                generator=torch.Generator(device=self.default_device).manual_seed(42),
             )            
 
     def train_dataloader(self) -> DataLoader[Any]:
@@ -151,12 +154,15 @@ class UNiFluorInferDataModule(LightningDataModule):
 
         :return: The train dataloader.
         """
+        # See https://discuss.pytorch.org/t/runtimeerror-expected-a-cuda-device-type-for-generator-but-found-cpu/161463 for 
+        # fix below with generator. TODO: save that site/link with InternetArchive
         return DataLoader(
             dataset=self.data_train,
             batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
             shuffle=True,
+            generator=torch.Generator(device=self.default_device)
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
@@ -170,6 +176,7 @@ class UNiFluorInferDataModule(LightningDataModule):
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
             shuffle=False,
+            generator=torch.Generator(device=self.default_device)
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
@@ -183,6 +190,7 @@ class UNiFluorInferDataModule(LightningDataModule):
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
             shuffle=False,
+            generator=torch.Generator(device=self.default_device)
         )
 
     def teardown(self, stage: Optional[str] = None) -> None:

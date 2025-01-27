@@ -37,9 +37,15 @@ class SimpleDenseNet(nn.Module):
         """
         self.model = nn.Sequential(
             nn.Linear(input_size, lin1_size,dtype=torch.float16),
-            nn.ReLU(), # dtype=torch.float16),
             nn.Linear(lin1_size, output_size,dtype=torch.float16)
         );
+        for index in [0,1]:
+            self.model[index].bias.data = 0 * self.model[index].bias.data;
+            self.model[index].bias.requires_grad = False; 
+            self.model[index].weight.data = 0 * self.model[index].weight.data;
+            
+        self.model[0].weight.requires_grad = False; 
+    
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.
@@ -54,7 +60,11 @@ class SimpleDenseNet(nn.Module):
         x = x.view(batch_size, -1)
 
         yInitial= self.model(x)
-
+        for index in [0,1]:
+            for val in ["self.model["+str(index)+"].bias", "self.model["+str(index)+"].weight"]:
+                print("torch.std("+val+"):" + str(torch.std(eval(val))), flush=True)
+                print("torch.max(torch.abs("+val+")):" + str(torch.max(torch.abs(eval(val)))) + "\n\n", flush=True);
+        
         yFinal=yInitial.view(batch_size, 3, xSize, ySize, zSize)
 
         return yFinal ;
