@@ -36,8 +36,8 @@ class SimpleDenseNet(nn.Module):
         )
         """
         self.model = nn.Sequential(
-            nn.Linear(input_size, lin1_size,dtype=torch.float16),
-            nn.Linear(lin1_size, output_size,dtype=torch.float16)
+            nn.Linear(input_size, lin1_size),
+            nn.Linear(lin1_size, output_size)
         );
         for index in [0,1]:
             self.model[index].bias.data = 0 * self.model[index].bias.data;
