@@ -2,6 +2,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import hydra
 import lightning as L
+
+
+
 import rootutils
 import torch
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
@@ -58,6 +61,11 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
     datamodule.setup();
 
+
+    # set the default device across all Pytorch tensors
+    torch.set_default_device(
+        torch.device(cfg.default_device)
+    )
 
     # log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -116,19 +124,14 @@ def main(cfg: DictConfig): # -> Optional[float]:
     """
 
 
-
-    # set the default device across all Pytorch tensors
-    torch.set_default_device(
-        torch.device(cfg.default_device)
-    )
-
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 
+
     # apply extra utilities
     # (e.g. ask for tags if none are provided in cfg, print cfg tree, etc.)
-    extras(cfg)
+    # extras(cfg)
 
     # train the model
     metric_dict, _ = train(cfg)

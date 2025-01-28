@@ -145,8 +145,8 @@ class UNiFluorInferDataModule(LightningDataModule):
             ###     # function torch.get_default_device() .
             self.data_train, self.data_val, self.data_test = random_split(
                 dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
-                lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator(device=self.default_device).manual_seed(42),
+                lengths=self.hparams.train_val_test_split #,
+                #generator=torch.Generator(device=self.default_device).manual_seed(42),
             )            
 
     def train_dataloader(self) -> DataLoader[Any]:
@@ -161,8 +161,8 @@ class UNiFluorInferDataModule(LightningDataModule):
             batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=True,
-            generator=torch.Generator(device=self.default_device)
+            shuffle=True #,
+            # generator=torch.Generator(device=self.default_device)
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
@@ -175,8 +175,8 @@ class UNiFluorInferDataModule(LightningDataModule):
             batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=False,
-            generator=torch.Generator(device=self.default_device)
+            shuffle=False #,
+            #generator=torch.Generator(device=self.default_device)
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
@@ -189,8 +189,8 @@ class UNiFluorInferDataModule(LightningDataModule):
             batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=False,
-            generator=torch.Generator(device=self.default_device)
+            shuffle=False#,
+            #generator=torch.Generator(device=self.default_device)
         )
 
     def teardown(self, stage: Optional[str] = None) -> None:
