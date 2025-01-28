@@ -50,8 +50,7 @@ class UNiFluorInferDataModule(LightningDataModule):
 
     def __init__(
         self,
-        data_dir: str = "data/",
-        train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
+        pathToSplitSpecifications: str = "data/",
         batch_size: int = 64,
         device: str="",
         num_workers: int = 0,
@@ -79,6 +78,8 @@ class UNiFluorInferDataModule(LightningDataModule):
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
+
+        self.pathToSplitSpecifications=pathToSplitSpecifications;
 
         self.batch_size_per_device = batch_size
 
@@ -143,11 +144,13 @@ class UNiFluorInferDataModule(LightningDataModule):
             ### default_device=torch.zeros(0).device; # hack for dealing with Pytorch version 2.1 that
             ###     # we are stuck with due to ANTSUN dependencies. In Pytorch version 2.5, there is the
             ###     # function torch.get_default_device() .
-            self.data_train, self.data_val, self.data_test = random_split(
-                dataset=UNiFluorInferDataset(sum(self.hparams.train_val_test_split)),
-                lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator(device=self.default_device).manual_seed(42),
-            )            
+      
+            for thisKey, thisPathSpec in [ ("data_train", "train_0.txt"),  
+                                           ("data_val", "val_0.txt"),
+                                           ("data_test", "test_0.txt") ]:    
+                self.__dict__[thisKey] = UNiFluorInferDataset(pathToSplitSpecification=self.pathToSplitSpecifications + thisPathSpec);
+    
+            return;
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.

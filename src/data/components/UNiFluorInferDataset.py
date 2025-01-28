@@ -14,6 +14,7 @@ from csbdeep.utils import normalize, axes_dict, axes_check_and_normalize, backen
 import typing;
 from src.utils.contracts import requires, ensures;
 import re;
+from hydra.utils import get_original_cwd ;
 
 import nrrd; 
 
@@ -33,7 +34,7 @@ class UNiFluorInferDataset(data.Dataset):
             if(not os.path.isdir(thisDirPath)):
                 raise Exception(f"Path \"{thisDirPath}\" exists but is not a directory.");
             if(not thisDirPath.endswith("/")):
-                pass
+                raise Exception("We expect the directory path to end in a \"/\".")
             for thisSubFile in subFilePaths:
                 if(re.match("^[a-zA-Z0-9_\.]+$", thisSubFile) is None):
                     raise Exception(\
@@ -47,7 +48,8 @@ class UNiFluorInferDataset(data.Dataset):
         return;
 
 
-    def __init__(self,pathToSplitSpecification:str,dtype=torch.float64,neuropal_ch_to_grab_indx=1):
+    def __init__(self,pathToSplitSpecification:str, dtype=torch.float64,neuropal_ch_to_grab_indx=1):
+        print("\n\n\n" + pathToSplitSpecification + "\n\n\n", flush=True)
         requires(isinstance(pathToSplitSpecification, str));
         requires(len(pathToSplitSpecification)> 0);
         requires(os.path.exists(pathToSplitSpecification));
@@ -61,10 +63,10 @@ class UNiFluorInferDataset(data.Dataset):
         self.priorLoaded=dict();
         self.pathToSplitSpecification=pathToSplitSpecification;
         self.usesOfSubFilesAndTheirPaths : typing.Tuple[typing.Tuple[str,str],typing.Tuple[str,str]] = \
-                                                 [("obs", "target"), ("all_red.nrrd", "NeuroPAL.nrrd")];
+                                                 [("obs", "all_red.nrrd"), ("target", "NeuroPAL.nrrd")];
         fh=open(self.pathToSplitSpecification,"r");
-        dirPaths=[x for x in fh.split("\n") if (len(x) > 0)];
-        self._checkFilePathsLoaded(dirPaths,self.usesOfSubFilesAndTheirPaths[1]);
+        dirPaths=[(get_original_cwd() + "/data/"+x) for x in fh.read().split("\n") if (len(x) > 0)];            
+        self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
         return;
@@ -85,14 +87,14 @@ class UNiFluorInferDataset(data.Dataset):
             return self.priorLoaded[idx];
         dirName=self._dirPaths[idx];
         readNRRDs=dict();
-        for thisVar, thisFileName in [("obs", "target"), ("all_red.nrrd", "NeuroPAL.nrrd")]:
-            temp = nrrd.read(dirName + thisFileName, index_order="F");
+        for thisVar, thisFileName in self.usesOfSubFilesAndTheirPaths:
+            temp = nrrd.read(dirName + thisFileName, index_order="F"); #, dtype=self.dtype);
             readNRRDs[thisVar] = temp[0];
             if(thisVar=="target"):
                 assert(temp[0].shape == tuple(self.confocalVolumeDims + [3]));
                 readNRRDs[thisVar] = readNRRDs[thisVar][:,:,:,self.neuropal_ch_to_grab_indx];
-            readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar], dtype=self.dtype);
-            assert(readNRRDs[thisVar].shape == tuple(self.confocalVolumeDims));
+            readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype).reshape(*([1] + self.confocalVolumeDims))
+            assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
             assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
             assert(readNRRDs[thisVar].dtype == self.dtype );
             assert(readNRRDs[thisVar].requires_grad == False );
@@ -103,8 +105,7 @@ class UNiFluorInferDataset(data.Dataset):
         
         return readNRRDs["obs"], readNRRDs["target"] ; #, filename
     
-    def __len__(self):
-        return self.numberInstances;
+
     
 
 def load_training_data(file, validation_split=0, axes=None, n_images=None, verbose=False):
