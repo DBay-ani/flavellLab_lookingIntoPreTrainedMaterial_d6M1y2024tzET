@@ -15,6 +15,7 @@ scheduler:
   factor: 0.1
   patience: 10
 
+# write a module to load in the variant of the UNImodule I'm using - lot of that is already around.
 net:
   _target_: src.models.components.simple_dense_net.SimpleDenseNet
   # For the below
