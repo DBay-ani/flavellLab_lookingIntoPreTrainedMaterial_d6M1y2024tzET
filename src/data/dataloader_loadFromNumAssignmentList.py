@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import torch
 from lightning import LightningDataModule
@@ -50,11 +50,14 @@ class UNiFluorInferDataModule(LightningDataModule):
 
     def __init__(
         self,
-        pathToSplitSpecifications: str = "data/",
+        pathToAssignmentCSV: str ,
+        trainNumIDs: List[int],
+        valNumIDs: List[int],
+        testNumIDs: List[int],
         batch_size: int = 64,
         device: str="",
         num_workers: int = 0,
-        pin_memory: bool = False,
+        pin_memory: bool = False
     ) -> None:
         """Initialize a `MNISTDataModule`.
 
@@ -70,16 +73,15 @@ class UNiFluorInferDataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
 
-        self.pathToSplitSpecifications=pathToSplitSpecifications;
+        self.trainNumIDs=trainNumIDs;
+        self.valNumIDs=valNumIDs;
+        self.testNumIDs=testNumIDs;
+
+        self.pathToAssignmentCSV=pathToAssignmentCSV;
 
         self.batch_size_per_device = batch_size
 
@@ -130,25 +132,14 @@ class UNiFluorInferDataModule(LightningDataModule):
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
 
-            # Below is an example PyTorch Lightning provided:
-            """
-            trainset = MNIST(self.hparams.data_dir, train=True, transform=self.transforms)
-            testset = MNIST(self.hparams.data_dir, train=False, transform=self.transforms)
-            dataset = ConcatDataset(datasets=[trainset, testset])
-            self.data_train, self.data_val, self.data_test = random_split(
-                dataset=dataset,
-                lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator().manual_seed(42),
-            )
-            """
             ### default_device=torch.zeros(0).device; # hack for dealing with Pytorch version 2.1 that
             ###     # we are stuck with due to ANTSUN dependencies. In Pytorch version 2.5, there is the
             ###     # function torch.get_default_device() .
-      
-            for thisKey, thisPathSpec in [ ("data_train", "train_0.txt"),  
-                                           ("data_val", "val_0.txt"),
-                                           ("data_test", "test_0.txt") ]:    
-                self.__dict__[thisKey] = UNiFluorInferDataset(pathToSplitSpecification=self.pathToSplitSpecifications + thisPathSpec);
+            for thisKey, assignedIDNumsToLoad in [ ("data_train", self.trainNumIDs),  
+                                           ("data_val", self.valNumIDs),
+                                           ("data_test", self.testNumIDs) ]:    
+                self.__dict__[thisKey] = UNiFluorInferDataset(pathToSplitSpecification=self.pathToAssignmentCSV,\
+                                                              assignedIDNumsToLoad=assignedIDNumsToLoad);
     
             return;
 

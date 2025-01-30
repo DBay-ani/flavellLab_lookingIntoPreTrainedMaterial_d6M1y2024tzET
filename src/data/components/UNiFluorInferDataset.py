@@ -72,10 +72,9 @@ class UNiFluorInferDataset(data.Dataset):
         return;
 
     def __len__(self) -> int:
-        return self._numberInstances * 10000;
+        return self._numberInstances;
 
     def __getitem__(self, idx):
-        idx=0;
         if(idx < 0):
             raise Exception("This dataloader does not support negative indexing");
         if(idx>=len(self._dirPaths)):
