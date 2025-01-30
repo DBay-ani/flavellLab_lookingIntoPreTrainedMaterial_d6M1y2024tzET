@@ -17,9 +17,9 @@ scheduler:
 
 net:
   _target_: src.models.components.simple_dense_net.SimpleDenseNet
-  input_size: 1309888  # (x,y,z)=(211, 97, 64)
+  input_size: 2088000 # 1309888  # (x,y,z)=(211, 97, 64)
   lin1_size: 220
-  output_size: 1309888 # (channels) * (x,y,z) = 1 * (211, 97, 64)
+  output_size: 2088000 # 1309888 # (channels) * (x,y,z) = 1 * (211, 97, 64)
 
 # compile model for faster training with pytorch 2.0
 compile: false

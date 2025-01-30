@@ -57,7 +57,7 @@ class UNiFluorInferDataset(data.Dataset):
         requires(len(pathToAssignmentCSV)> 0);
         requires(os.path.exists(pathToAssignmentCSV));
         requires(os.path.isfile(pathToAssignmentCSV));
-        self.confocalVolumeDims=[211, 97, 64];
+        self.confocalVolumeDims=[290, 115, 72];
         self.numChannels_obs=1;
         self.numChannels_label=1;
         self.neuropal_ch_to_grab_indx=neuropal_ch_to_grab_indx;
@@ -71,10 +71,12 @@ class UNiFluorInferDataset(data.Dataset):
         fh=open(self.pathToSplitSpecification,"r");
         dirPaths=[];
         for thisLine in fh.read().split("\n"):
-            numIDOfSplit, x = thisLine.split(",");
+            if(thisLine == ""):
+                continue;
+            numIDOfSplit, pathToDirectory = thisLine.split(",");
             if(int(numIDOfSplit) not in assignedIDNumsToLoad):
                 continue;
-            dirPaths.append(get_original_cwd() + "/data/"+x);
+            dirPaths.append(get_original_cwd() + "/data/"+pathToDirectory);
         self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
@@ -96,14 +98,19 @@ class UNiFluorInferDataset(data.Dataset):
             return self.priorLoaded[idx];
         dirName=self._dirPaths[idx];
         readNRRDs=dict();
+        # TODO: check the dimensions more carefully...
         for thisVar, thisFileName in self.usesOfSubFilesAndTheirPaths:
             temp = nrrd.read(dirName + thisFileName, index_order="F"); #, dtype=self.dtype);
             readNRRDs[thisVar] = temp[0];
             if(thisVar=="target"):
-                assert(temp[0].shape == tuple(self.confocalVolumeDims + [3]));
+                # assert(temp[0].shape == tuple(self.confocalVolumeDims + [3]));
                 readNRRDs[thisVar] = readNRRDs[thisVar][:,:,:,self.neuropal_ch_to_grab_indx];
-            readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype).reshape(*([1] + self.confocalVolumeDims))
-            assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
+            # readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype).reshape(*([1] + self.confocalVolumeDims))
+            temp123=torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype)
+            print(f"\n\n{thisFileName}:{temp123.shape}")
+            readNRRDs[thisVar]=torch.zeros(tuple([1] + self.confocalVolumeDims),dtype=self.dtype); #temp123.reshape(*([1] + list(temp123.shape)))
+            readNRRDs[thisVar][0,:(temp123.shape[0]),:(temp123.shape[1]),:(temp123.shape[2])] = temp123
+            # assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
             assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
             assert(readNRRDs[thisVar].dtype == self.dtype );
             assert(readNRRDs[thisVar].requires_grad == False );

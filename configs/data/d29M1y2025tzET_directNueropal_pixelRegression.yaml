@@ -1,10 +1,9 @@
-_target_: src.data.dataloader_loadFromNumAssignmentList.UNiFluorInferDataModule
-pathToSplitSpecifications: "${paths.data_dir}finalNeuropalAndAllRed_fromData1_1738036465_62e9b372-aedf-464d-a27e-b7b255c1c56d/data_splits/splits_1738076008_89743580-08f9-42f1-b721-53f6b05152b6/"
-batch_size: 256 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+_target_: src.data.datamodule_loadFromNumAssignmentList.UNiFluorInferDataModule
+pathToAssignmentCSV: "${paths.data_dir}finalNeuropalAndAllRed_fromData1_1738036465_62e9b372-aedf-464d-a27e-b7b255c1c56d/data_splits/splits_1738207659_aaa009b1-0871-4d5d-a672-1cc040d743a3/assignments.csv"
+batch_size: 2 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 num_workers: 0
 pin_memory: False
 device: ${default_device}
-pathToAssignmentCSV: 
 trainNumIDs: [0,1,2,3,4,5,6,7]
 valNumIDs: [8]
 testNumIDs: [9]

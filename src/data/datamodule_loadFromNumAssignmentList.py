@@ -5,7 +5,7 @@ from lightning import LightningDataModule
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
-from src.data.components.UNiFluorInferDataset import UNiFluorInferDataset; 
+from src.data.components.dataset_loadFromNumAssignmentList import UNiFluorInferDataset; 
 
 
 class UNiFluorInferDataModule(LightningDataModule):
@@ -138,7 +138,7 @@ class UNiFluorInferDataModule(LightningDataModule):
             for thisKey, assignedIDNumsToLoad in [ ("data_train", self.trainNumIDs),  
                                            ("data_val", self.valNumIDs),
                                            ("data_test", self.testNumIDs) ]:    
-                self.__dict__[thisKey] = UNiFluorInferDataset(pathToSplitSpecification=self.pathToAssignmentCSV,\
+                self.__dict__[thisKey] = UNiFluorInferDataset(pathToAssignmentCSV=self.pathToAssignmentCSV,\
                                                               assignedIDNumsToLoad=assignedIDNumsToLoad);
     
             return;
