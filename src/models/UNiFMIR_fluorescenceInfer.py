@@ -149,10 +149,11 @@ class UNiFluorInferModule(LightningModule):
         """
         x, y = batch
         logits = self.forward(x)
-        loss = torch.sum(logits[:,0]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
+        loss = torch.sum((logits-y) ** 2);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         # preds = torch.argmax(logits, dim=1)
         for val in ["x", "y", "logits", "loss"]:
-            print("torch.isnan("+val+"):" + str(torch.any(torch.isnan(eval(val)))), flush=True)
+            if(torch.any(torch.isnan(eval(val)))):
+                print("torch.isnan("+val+") is True", flush=True);
         return loss, logits, y
 
     def training_step(

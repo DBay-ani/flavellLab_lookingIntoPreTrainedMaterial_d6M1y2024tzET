@@ -61,11 +61,12 @@ class SimpleDenseNet(nn.Module):
         x = x.view(batch_size, -1)
 
         yInitial= self.model(x)
+        """
         for index in [0,1]:
             for val in ["self.model["+str(index)+"].bias", "self.model["+str(index)+"].weight"]:
                 print("torch.std("+val+"):" + str(torch.std(eval(val))), flush=True)
                 print("torch.max(torch.abs("+val+")):" + str(torch.max(torch.abs(eval(val)))) + "\n\n", flush=True);
-        
+        """
         yFinal=yInitial.view(batch_size, 1, xSize, ySize, zSize)
 
         return yFinal ;
