@@ -17,9 +17,15 @@ scheduler:
 
 net:
   _target_: src.models.components.simple_dense_net.SimpleDenseNet
-  input_size: 2088000 # 1309888  # (x,y,z)=(211, 97, 64)
-  lin1_size: 220
-  output_size: 2088000 # 1309888 # (channels) * (x,y,z) = 1 * (211, 97, 64)
+  # For the below
+  # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ time ( head /data1/prj_starvation/data_processed/*/NRRD/*_t0308_ch1.nrrd | grep sizes | sort | uniq )
+  # sizes: 322 212 77
+  # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ date
+  # Thu Jan 30 17:59:37 UTC 2025
+  # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ 
+  input_size: 5256328  # (x,y,z)=(322, 212, 77)
+  lin1_size: 22
+  output_size: 5256328 # (channels) * (x,y,z) = 1 * (322, 212, 77)
 
 # compile model for faster training with pytorch 2.0
 compile: false

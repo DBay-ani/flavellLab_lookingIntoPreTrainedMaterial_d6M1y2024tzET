@@ -57,7 +57,13 @@ class UNiFluorInferDataset(data.Dataset):
         requires(len(pathToAssignmentCSV)> 0);
         requires(os.path.exists(pathToAssignmentCSV));
         requires(os.path.isfile(pathToAssignmentCSV));
-        self.confocalVolumeDims=[290, 115, 72];
+        # For the below
+        # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ time ( head /data1/prj_starvation/data_processed/*/NRRD/*_t0308_ch1.nrrd | grep sizes | sort | uniq )
+        # sizes: 322 212 77
+        # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ date
+        # Thu Jan 30 17:59:37 UTC 2025
+        # (UniFMIR_d15M1y2025) david@flv-c3:/storage/fs/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET$ 
+        self.confocalVolumeDims=[322, 212, 77]# [360, 120, 80];
         self.numChannels_obs=1;
         self.numChannels_label=1;
         self.neuropal_ch_to_grab_indx=neuropal_ch_to_grab_indx;
@@ -109,7 +115,8 @@ class UNiFluorInferDataset(data.Dataset):
             temp123=torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype)
             print(f"\n\n{thisFileName}:{temp123.shape}")
             readNRRDs[thisVar]=torch.zeros(tuple([1] + self.confocalVolumeDims),dtype=self.dtype); #temp123.reshape(*([1] + list(temp123.shape)))
-            readNRRDs[thisVar][0,:(temp123.shape[0]),:(temp123.shape[1]),:(temp123.shape[2])] = temp123
+            indexRange=[min(x,y) for x,y in zip(self.confocalVolumeDims, temp123.shape)]
+            readNRRDs[thisVar][0,:(indexRange[0]),:(indexRange[1]),:(indexRange[2])] = temp123[:(indexRange[0]),:(indexRange[1]),:(indexRange[2])];
             # assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
             assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
             assert(readNRRDs[thisVar].dtype == self.dtype );
