@@ -1,8 +1,8 @@
 import os
 import torch
 import torch.nn as nn
-from model.attention import ProjectionUpdater
-from model.Unimodel import UniModel
+from .attention import ProjectionUpdater
+from .Unimodel import UniModel
 
 gpu = torch.cuda.is_available()
 

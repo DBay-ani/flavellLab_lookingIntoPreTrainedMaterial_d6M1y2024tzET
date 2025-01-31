@@ -31,8 +31,10 @@ class UniModel(nn.Module):
         num_feat, \
         srscale, \
         initialValForFinaleAdditionOf_x2d \
-    ):
+    ) -> None:
         super(UniModel, self).__init__()
+
+        norm_layer=eval(norm_layer);
         self.img_range = 1
         self.mean = torch.zeros(1, 1, 1, 1)
         self.window_size = window_size
@@ -143,7 +145,7 @@ class UniModel(nn.Module):
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
 
-        return x2d, rightHandSideToReturn
+        return rightHandSideToReturn
         
         #x = x / self.img_range + self.mean
         #

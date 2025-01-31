@@ -9,9 +9,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-import models.components.UniFMIR.attention as attention
-import models.components.UniFMIR.common as common
-
+# import models.components.UniFMIR.attention as attention
+# import models.components.UniFMIR.common as common
+from . import attention, common; # import .attention as attention
 
 class swinir(nn.Module):
     def __init__(self, img_size=64, patch_size=1, in_chans=1, out_chans=1,
@@ -902,7 +902,7 @@ class Projhead(nn.Module):
         m_body = [attention.ENLCA(
             channel=n_feats, reduction=4,
             res_scale=res_scale)]
-        for i in range(n_resblock):
+        for i in range(n_resblocks):
             m_body.append(common.ResBlock(
                 conv, n_feats, kernel_size, act=act, res_scale=res_scale
             ))
