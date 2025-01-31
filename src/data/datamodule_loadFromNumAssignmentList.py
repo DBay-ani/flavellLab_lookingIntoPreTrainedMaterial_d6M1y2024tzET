@@ -54,6 +54,8 @@ class UNiFluorInferDataModule(LightningDataModule):
         trainNumIDs: List[int],
         valNumIDs: List[int],
         testNumIDs: List[int],
+        numberOfPatchesPerImage : int, \
+        patchSize: int, \
         batch_size: int = 64,
         device: str="",
         num_workers: int = 0,
@@ -139,7 +141,9 @@ class UNiFluorInferDataModule(LightningDataModule):
                                            ("data_val", self.valNumIDs),
                                            ("data_test", self.testNumIDs) ]:    
                 self.__dict__[thisKey] = UNiFluorInferDataset(pathToAssignmentCSV=self.pathToAssignmentCSV,\
-                                                              assignedIDNumsToLoad=assignedIDNumsToLoad);
+                                                              assignedIDNumsToLoad=assignedIDNumsToLoad, \
+                                                              numberOfPatchesPerImage=self.hparams.numberOfPatchesPerImage, \
+                                                              patchSize=self.hparams.patchSize);
     
             return;
 

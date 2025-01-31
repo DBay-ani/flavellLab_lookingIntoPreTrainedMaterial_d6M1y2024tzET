@@ -108,6 +108,6 @@ args:
     epsilon : 1e-08
     weight_decay : 0
     gclip : 0
-    inch: 322
+    inch: 61
 
 

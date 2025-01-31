@@ -18,6 +18,9 @@ from hydra.utils import get_original_cwd ;
 
 import nrrd; 
 
+from csbdeep.data.generate import create_patches
+
+
 class UNiFluorInferDataset(data.Dataset):
 
     @staticmethod
@@ -51,6 +54,8 @@ class UNiFluorInferDataset(data.Dataset):
     def __init__(self,\
         pathToAssignmentCSV :str,\
         assignedIDNumsToLoad : typing.List[int],\
+        numberOfPatchesPerImage : int, \
+        patchSize : int,
         dtype=torch.float32,neuropal_ch_to_grab_indx=1):
         print("\n\n\n" + pathToAssignmentCSV + "\n\n\n", flush=True)
         requires(isinstance(pathToAssignmentCSV, str));
@@ -86,6 +91,9 @@ class UNiFluorInferDataset(data.Dataset):
         self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
+
+        self.patchSize=(61,patchSize,patchSize); # patchSize);
+        self.numberOfPatchesPerImage=numberOfPatchesPerImage;
         return;
 
     def __len__(self) -> int:
@@ -102,7 +110,7 @@ class UNiFluorInferDataset(data.Dataset):
             # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
             # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
             return self.priorLoaded[idx];
-        dirName=self._dirPaths[idx];
+        dirName=self._dirPaths[idx % self.numberOfPatchesPerImage];
         readNRRDs=dict();
         # TODO: check the dimensions more carefully...
         for thisVar, thisFileName in self.usesOfSubFilesAndTheirPaths:
@@ -112,22 +120,49 @@ class UNiFluorInferDataset(data.Dataset):
                 # assert(temp[0].shape == tuple(self.confocalVolumeDims + [3]));
                 readNRRDs[thisVar] = readNRRDs[thisVar][:,:,:,self.neuropal_ch_to_grab_indx];
             # readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype).reshape(*([1] + self.confocalVolumeDims))
-            temp123=torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype)
+            temp123=readNRRDs[thisVar]; #.to(dtype=self.dtype)
+            
             print(f"\n\n{thisFileName}:{temp123.shape}")
-            readNRRDs[thisVar]=torch.zeros(tuple(self.confocalVolumeDims),dtype=self.dtype); #temp123.reshape(*([1] + list(temp123.shape)))
+            readNRRDs[thisVar]=np.zeros(tuple(self.confocalVolumeDims)); # ,dtype=self.dtype); #temp123.reshape(*([1] + list(temp123.shape)))
             indexRange=[min(x,y) for x,y in zip(self.confocalVolumeDims, temp123.shape)]
             readNRRDs[thisVar][:(indexRange[0]),:(indexRange[1]),:(indexRange[2])] = temp123[:(indexRange[0]),:(indexRange[1]),:(indexRange[2])];
             # assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
-            assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
-            assert(readNRRDs[thisVar].dtype == self.dtype );
-            assert(readNRRDs[thisVar].requires_grad == False );
-            readNRRDs[thisVar] = readNRRDs[thisVar].to("cuda:0");
+            ##### assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
+            # assert(readNRRDs[thisVar].dtype == self.dtype );
+            ########## assert(readNRRDs[thisVar].requires_grad == False );
+            
+            #readNRRDs[thisVar] = temp123; #readNRRDs[thisVar]; # .to("cuda:0");
         
+            numberOfPatchesPerImage=self.numberOfPatchesPerImage
+
+            class exampleRawData():
+
+                def generator(self):
+                    def gen():
+                        yield readNRRDs["obs"], readNRRDs["target"], "XYZ", None ; #readNRRDs["obs"].to("cpu").numpy(), readNRRDs["target"].to("cpu").numpy(), "XYZ", None;
+
+                    return gen();
+
+                @property
+                def size(self):
+                    return numberOfPatchesPerImage;
+    
+                @property
+                def description(self):
+                    return "Internal class for forming patches of the data."
+
+
+        patches = create_patches( exampleRawData(), self.patchSize, self.numberOfPatchesPerImage, patch_filter=None);
+
         # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
         # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
-        self.priorLoaded[idx]=(readNRRDs["obs"], readNRRDs["target"]);
+        for subInd in range(0,self.numberOfPatchesPerImage):
+            newSubInd=(idx % self.numberOfPatchesPerImage)+ subInd;
+            thisObs=torch.Tensor(patches[0][newSubInd, :,:,:]).view(*self.patchSize).numpy(); #.to("cuda:0");
+            thisTarget=torch.Tensor(patches[1][newSubInd, :,:,:]).view(*self.patchSize).numpy(); # .to("cuda:0");
+            self.priorLoaded[newSubInd]=(thisObs, thisTarget); # readNRRDs["obs"], readNRRDs["target"]);
         
-        return readNRRDs["obs"], readNRRDs["target"] ; #, filename
+        return self.priorLoaded[idx]; #readNRRDs["obs"], readNRRDs["target"] ; #, filename
     
 
     

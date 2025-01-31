@@ -7,3 +7,5 @@ device: ${default_device}
 trainNumIDs: [0,1,2,3,4,5,6,7]
 valNumIDs: [8]
 testNumIDs: [9]
+numberOfPatchesPerImage: 16 #${..model.UNiFMIR_fluorescenceInfer.args.numberOfPatchesPerImage}
+patchSize: 64 #  ${..model.UNiFMIR_fluorescenceInfer.args.patch_size}
