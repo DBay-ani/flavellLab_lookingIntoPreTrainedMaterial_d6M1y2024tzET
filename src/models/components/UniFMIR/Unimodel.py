@@ -1,39 +1,57 @@
 # unify all IR models
 
-from model.swinir import *
-
-
-
-
-
-
-def make_model(args):
-    args.n_resblocks = 64
-    args.n_feats = 256
-    return UniModel(args=args)
-
+from models.components.UniFMIR.swinir import *
+import copy;
+from typing import List;
 
 class UniModel(nn.Module):
-    def __init__(self, args, img_size=64, patch_size=1,
-                 embed_dim=180 // 2, depths=[6, 6, 6], num_heads=[6, 6, 6],
-                 window_size=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
-                 drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
-                 norm_layer=nn.LayerNorm, patch_norm=True,
-                 use_checkpoint=False, num_feat=32, srscale=2):
+    def __init__(self, \
+        img_size, \
+        depths, \
+        num_heads, \
+        inch, \
+        n_colors, \
+        n_feats, \
+        n_resblocks, \
+        res_scale, \
+        rgb_range, \
+        scale, \
+        patch_size, \
+        embed_dim, \
+        window_size, \
+        mlp_ratio, \
+        qkv_bias, \
+        qk_scale, \
+        drop_rate, \
+        attn_drop_rate, \
+        drop_path_rate, \
+        norm_layer, \
+        patch_norm, \
+        use_checkpoint, \
+        num_feat, \
+        srscale, \
+        initialValForFinaleAdditionOf_x2d \
+    ):
         super(UniModel, self).__init__()
         self.img_range = 1
         self.mean = torch.zeros(1, 1, 1, 1)
         self.window_size = window_size
 
-
-
+        # self.finalAdditionOf_x2d=finalAdditionOf_x2d;
+        self.coeffForFinalAddition_x2d = torch.ones(1) * initialValForFinaleAdditionOf_x2d;
+        self.coeffForFinalAddition_x2d.requires_grad=True;
 
         # 4 Projection
-        argsForProjections=copy.deepcopy(args)
-        argsForProjections.n_resblocks = 64
-        argsForProjections.n_feats = 256
+        specificValOriginalModelHardCodedHere_n_resblocks = 64
+        specificValOriginalModelHardCodedHere_n_feats = 256
         ### args.inch = 50
-        self.project = Projhead(args=argsForProjections)
+        self.project = Projhead(inch,\
+            n_colors,\
+            specificValOriginalModelHardCodedHere_n_feats,\
+            specificValOriginalModelHardCodedHere_n_resblocks,\
+            res_scale,\
+            rgb_range,\
+            scale);
         self.conv_firstproj = nn.Conv2d(1, embed_dim, 3, 1, 1)
         
         # 5 2D to 3D
@@ -120,7 +138,12 @@ class UniModel(nn.Module):
         x = xfe
         x = self.conv_before_upsamplev(x)
         x = self.conv_lastv(x)
-        return xunet, x / self.img_range + self.mean
+        rightHandSideToReturn=x / self.img_range + self.mean + \
+            self.coeffForFinalAddition_x2d * x2d;
+        #if(self.finalAdditionOf_x2d):
+        #    rightHandSideToReturn=rightHandSideToReturn+x2d;
+
+        return x2d, rightHandSideToReturn
         
         #x = x / self.img_range + self.mean
         #

@@ -1,39 +1,38 @@
 import torch
 from torch import nn
-
+from typing import List;
+from models.components.UniFMIR.Unimodel import UniModel;
 
 class My_UNiFMIR_variant(nn.Module):
     """A simple fully-connected neural net for computing predictions."""
 
     def __init__(
         self,
-        input_size: int = 784,
-        lin1_size: int = 256,
-        output_size: int = 10,
+        optimizer,
+        scheduler,
+        weights_to_load_in_order: List[str],
+        unimodel : nn.Module,
+        compile: bool, 
+        args
     ) -> None:
 
         super().__init__()
 
+        # unimodel = UniModel(config_args); #cfg.args); 
 
+        for x in unimodel.parameters():
+            # print(str(x.flatten()[0]))
+            x.data = torch.nan * x.data ;
 
-        AAAA = torch.load(cfg.args.pre_train.upDim)
-        BBBB = torch.load(cfg.args.pre_train.projection)
+        for thisPath in weights_to_load_in_order:
+            theseWeights = torch.load(thisPath);
+            unimodel.load_state_dict(theseWeights, strict=False);
+        
+        for x in unimodel.parameters():
+            if(torch.any(torch.isnan(x.data))):
+                x.requires_grad=False;
 
-        unimodel = model.UniModel(cfg.args); 
-
-        unimodel.load_state_dict(AAAA, strict=False);
-        unimodel.load_state_dict(BBBB, strict=False);
-
-
-
-        self.model = unimodel;
-        # for index in [0,1]:
-        #    self.model[index].bias.data = 0 * self.model[index].bias.data;
-        #    self.model[index].bias.requires_grad = False; 
-        #    self.model[index].weight.data = 0 * self.model[index].weight.data;
-            
-        # self.model[0].weight.requires_grad = False; 
-    
+        self.model = unimodel; 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.
@@ -50,6 +49,3 @@ class My_UNiFMIR_variant(nn.Module):
         yFinal=yInitial.view(batch_size, 1, xSize, ySize, zSize)
 
         return yFinal ;
-
-if __name__ == "__main__":
-    _ = SimpleDenseNet()

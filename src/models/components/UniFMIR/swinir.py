@@ -9,8 +9,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-import model.attention as attention
-import model.common as common
+import models.components.UniFMIR.attention as attention
+import models.components.UniFMIR.common as common
 
 
 class swinir(nn.Module):
@@ -878,32 +878,38 @@ class UNetA(nn.Module):
 
 
 class Projhead(nn.Module):
-    def __init__(self, args, conv=common.default_conv):
+    def __init__(self, 
+        inch,
+        n_colors,
+        n_feats,
+        n_resblocks,
+        res_scale,
+        rgb_range,
+        scale ,              
+        conv=common.default_conv):
         super(Projhead, self).__init__()
         
-        n_resblock = args.n_resblocks
-        inch = args.inch
-        outch = args.n_colors
-        n_feats = args.n_feats
+        outch = n_colors
+        n_feats = n_feats
         kernel_size = 3
-        scale = args.scale[0]
+        scale = scale[0]
         act = nn.ReLU(True)
         
-        self.sub_mean = common.MeanShiftC1(args.rgb_range)
-        self.add_mean = common.MeanShiftC1(args.rgb_range, sign=1)
+        self.sub_mean = common.MeanShiftC1(rgb_range)
+        self.add_mean = common.MeanShiftC1(rgb_range, sign=1)
         m_head = [conv(inch, n_feats, kernel_size)]
         
         m_body = [attention.ENLCA(
             channel=n_feats, reduction=4,
-            res_scale=args.res_scale)]
+            res_scale=res_scale)]
         for i in range(n_resblock):
             m_body.append(common.ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=args.res_scale
+                conv, n_feats, kernel_size, act=act, res_scale=res_scale
             ))
             if (i + 1) % 8 == 0:
                 m_body.append(attention.ENLCA(
                     channel=n_feats, reduction=4,
-                    res_scale=args.res_scale))
+                    res_scale=res_scale))
         m_body.append(conv(n_feats, n_feats, kernel_size))
         
         # define tail module
