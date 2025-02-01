@@ -18,14 +18,44 @@ class My_UNiFMIR_variant(nn.Module):
             # print(str(x.flatten()[0]))
             x.data = torch.nan * x.data ;
 
-        for thisPath in []: #weights_to_load_in_order:
+        # NOTE: probably the last scalar will still be nan....
+
+        numAssigned=0;
+        numSkipped=0;
+
+        setsOfNamesAssignedTo={x : set() for x in weights_to_load_in_order };
+        for thisPath in weights_to_load_in_order:
             print("thisPath:" + str(thisPath),flush=True);
             theseWeights = torch.load(thisPath);
-            unimodel.load_state_dict(theseWeights, strict=False);
+            for thisName, x in unimodel.named_parameters():
+                # print(str(x.flatten()[0]))
+                if(thisName not in theseWeights):
+                    continue;
+                if(x.shape == theseWeights[thisName].shape):
+                    print(f"ASSIGNING -  weight \"{thisName}\" from file \"{thisPath}\"", flush=True);
+                    x.data = theseWeights[thisName];
+                    numAssigned=numAssigned+1;
+                    setsOfNamesAssignedTo[thisPath].add(thisName);
+                else:
+                    print(f"Skipping weight \"{thisName}\" from file \"{thisPath}\"", flush=True);
+                    numSkipped=numSkipped+1;
+        
+        doubledAssigned=list(setsOfNamesAssignedTo.values());
+        assignedVals=[len(x) for x in doubledAssigned];
+        doubledAssigned=doubledAssigned[0].intersection(doubledAssigned[1]);
+        print(f"ASSIGNED: {numAssigned}, SKIPPED: {numSkipped}, Lengths of values read: {assignedVals}, VALUES DOUBLE-ASSIGNED TO: {len(doubledAssigned)}", flush=True);
+
+            # unimodel.load_state_dict(theseWeights, strict=False);
         
         for x in unimodel.parameters():
             if(torch.any(torch.isnan(x.data))):
                 x.requires_grad=False;
+    
+        for thisName, x in unimodel.named_parameters():
+            if(torch.any(torch.isnan(x.data))):
+                print("Named parameter unassigned to: "+ thisName, flush=True);
+        
+        print("UNAMED PARAMETERS: " + str(len([x for x in unimodel.parameters()]) - len([ x for x in unimodel.named_parameters()]))  , flush=True);
 
         self.model = unimodel.to("cuda:0"); 
 
