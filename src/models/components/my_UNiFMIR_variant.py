@@ -34,20 +34,26 @@ class My_UNiFMIR_variant(nn.Module):
                 if(x.shape == theseWeights[thisName].shape):
                     print(f"ASSIGNING -  weight \"{thisName}\" from file \"{thisPath}\"", flush=True);
                     x.data = theseWeights[thisName];
+                    # if(numAssigned % 2 ==0 ):
+                    #    x.requires_grad = False;
                     numAssigned=numAssigned+1;
                     setsOfNamesAssignedTo[thisPath].add(thisName);
                 else:
-                    print(f"Skipping weight \"{thisName}\" from file \"{thisPath}\"", flush=True);
+                    print(f"Skipping weight \"{thisName}\" from file \"{thisPath}\"; our model has this as size ${x.shape} while the loaded content has size ${theseWeights[thisName].shape}.", flush=True);
                     numSkipped=numSkipped+1;
         
-        doubledAssigned=list(setsOfNamesAssignedTo.values());
-        assignedVals=[len(x) for x in doubledAssigned];
-        doubledAssigned=doubledAssigned[0].intersection(doubledAssigned[1]);
-        print(f"ASSIGNED: {numAssigned}, SKIPPED: {numSkipped}, Lengths of values read: {assignedVals}, VALUES DOUBLE-ASSIGNED TO: {len(doubledAssigned)}", flush=True);
-
+        setsOfNamesAssignedByFiles=list(setsOfNamesAssignedTo.values());
+        assignedVals=[len(x) for x in setsOfNamesAssignedByFiles];
+        intersections=[];
+        # for v1, v2 in [[0,1],[1,2],[0,2]]:
+        #     intersections.append(len(setsOfNamesAssignedByFiles[v1].intersection(setsOfNamesAssignedByFiles[v2])));
+        print(f"ASSIGNED: {numAssigned}, SKIPPED: {numSkipped}, Lengths of values read: {assignedVals}, VALUES DOUBLE-ASSIGNED TO: {intersections}", flush=True);
+ 
             # unimodel.load_state_dict(theseWeights, strict=False);
         
         for x in unimodel.parameters():
+            # if("_x2d" in x.name):
+            #     continue;
             if(torch.any(torch.isnan(x.data))):
                 x.requires_grad=False;
     

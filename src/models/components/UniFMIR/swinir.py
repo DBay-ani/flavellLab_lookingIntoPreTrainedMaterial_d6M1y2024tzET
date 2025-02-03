@@ -249,9 +249,11 @@ class WindowAttention(nn.Module):
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim ** -0.5
 
+        print("swinir pre-relative_position_bias_table: "+str(dict(dim=self.dim, window_size=self.window_size, num_heads=self.num_heads, head_dim=head_dim, scale=self.scale)),flush=True);
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
             torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads))  # 2*Wh-1 * 2*Ww-1, nH
+        print("swinir post-relative_position_bias_table: "+str(dict(relative_position_bias_table_shape=self.relative_position_bias_table.shape,dim=self.dim, window_size=self.window_size, num_heads=self.num_heads, head_dim=head_dim, scale=self.scale)),flush=True);
 
         # get pair-wise relative position index for each token inside the window
         coords_h = torch.arange(self.window_size[0])
@@ -357,7 +359,7 @@ class SwinTransformerBlock(nn.Module):
         if min(self.input_resolution) <= self.window_size:
             # if window size is larger than input resolution, we don't partition windows
             self.shift_size = 0
-            self.window_size = min(self.input_resolution)
+            self.window_size = min(self.input_resolution) # squirrel....
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
 
         self.norm1 = norm_layer(dim)

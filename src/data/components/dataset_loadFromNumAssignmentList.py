@@ -92,7 +92,7 @@ class UNiFluorInferDataset(data.Dataset):
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
 
-        self.patchSize=(61,patchSize,patchSize); # patchSize);
+        self.patchSize=(50,patchSize,patchSize); # patchSize);
         self.numberOfPatchesPerImage=numberOfPatchesPerImage;
         return;
 

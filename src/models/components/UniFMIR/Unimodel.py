@@ -40,7 +40,7 @@ class UniModel(nn.Module):
         self.window_size = window_size
 
         # self.finalAdditionOf_x2d=finalAdditionOf_x2d;
-        self.coeffForFinalAddition_x2d = torch.ones(1) * initialValForFinaleAdditionOf_x2d;
+        self.coeffForFinalAddition_x2d = nn.Parameter(torch.ones(1) * initialValForFinaleAdditionOf_x2d);
         self.coeffForFinalAddition_x2d.requires_grad=True;
 
         # 4 Projection
@@ -57,22 +57,50 @@ class UniModel(nn.Module):
         self.conv_firstproj = nn.Conv2d(1, embed_dim, 3, 1, 1)
         
         # 5 2D to 3D
-        self.conv_first0 = UNetA(121, 61)
-        self.conv_firstv = nn.Conv2d(61, embed_dim, 3, 1, 1)
+        ## Unused ## self.conv_first0 = UNetA(121, 61)
+        ## Unused ## self.conv_firstv = nn.Conv2d(61, embed_dim, 3, 1, 1)
         self.conv_before_upsamplev = nn.Sequential(nn.Conv2d(embed_dim, embed_dim, 3, 1, 1), nn.LeakyReLU(inplace=True))
         self.conv_lastv = nn.Conv2d(embed_dim, 61, 3, 1, 1)
 
         ### self.example12345=nn.Conv2d(embed_dim, 61, 3, 1, 1)
-        
+       
+        img_size= 8 * patch_size; #  See the line in swinir.py labeled "squirrel", DBayani m27htw17d3M2y2025tzET
         self.patch_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
+            img_size=(img_size), patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
             norm_layer=norm_layer if patch_norm else None)
+        # NOTE, DBayani m29htw18d3M2y2025tzET: it is questionable whether, in the call to PatchUnEmbed below,
+        #     the val passed for img_size should be patch_size, of the value assigned to img_size above.
+        #     I suppose this is not the only place that question has to be raised.
         self.patch_unembed = PatchUnEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
+            img_size=(patch_size), patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
             norm_layer=norm_layer if patch_norm else None)
         self.pos_drop = nn.Dropout(p=drop_rate)
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
         self.layers = nn.ModuleList()
+
+        i_layer=0;
+        A = dict(      dim=embed_dim,
+                         input_resolution=(self.patch_embed.patches_resolution[0],
+                                           self.patch_embed.patches_resolution[1]),
+                         depth=depths[i_layer],
+                         num_heads=num_heads[i_layer],
+                         window_size=window_size,
+                         mlp_ratio=mlp_ratio,
+                         qkv_bias=qkv_bias, qk_scale=qk_scale,
+                         drop=drop_rate, attn_drop=attn_drop_rate,
+                         drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],  # no impact on SR results
+                         norm_layer=norm_layer,
+                         downsample=None,
+                         use_checkpoint=use_checkpoint,
+                         img_size=img_size,
+                         patch_size=patch_size,
+                         resi_connection='1conv'
+                         )
+
+        for k,v in A.items():
+            print(str(k) +", " + str(v), flush=True);
+
+        ### exit();
         for i_layer in range(len(depths)):
             layer = RSTB(dim=embed_dim,
                          input_resolution=(self.patch_embed.patches_resolution[0],
@@ -99,6 +127,11 @@ class UniModel(nn.Module):
         self.apply(self._init_weights)
     
     def _init_weights(self, m):
+        # try:
+        #     print("_init_weights:" + str(m.name), flush=True);
+        # except: 
+        #     print("_init_weights:" + str(m)[:1000], flush=True);
+        # return;
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -128,7 +161,9 @@ class UniModel(nn.Module):
         
         # ~~~~~~~~~~~~ Feature enhancement ~~~~~~~~~~~~~
         xfe = self.conv_after_body(self.forward_features(x))
-        
+        ### xfe=x;
+        # print("RABBIT:" +str(xfe.shape) + " , " + str(x.shape), flush=True);
+
         # ~~~~~~~~~~~~ Tail ~~~~~~~~~~~~~~~ #
         # DBayani m9htw16d15M1y2025tzET
         #
