@@ -5,6 +5,21 @@ import copy;
 from typing import List;
 
 class UniModel(nn.Module):
+
+
+    @staticmethod
+    def bandAver(dim1, dim2):
+        #requires(dim1 < dim2);
+        bandwidth=dim2-dim1;
+        diagSeed=torch.ones(dim2);
+        initialTensor=sum([torch.diagflat(diagSeed, offset=x)[\
+                int(bandwidth/2):(dim1 + int(bandwidth/2)),:dim2] \
+                for x in range(-bandwidth,bandwidth+1)]);
+        initialTensor=initialTensor/torch.sum(initialTensor,dim=1).reshape(-1,1);
+        return initialTensor
+
+
+
     def __init__(self, \
         img_size, \
         depths, \
@@ -42,6 +57,8 @@ class UniModel(nn.Module):
         # self.finalAdditionOf_x2d=finalAdditionOf_x2d;
         self.coeffForFinalAddition_x2d = nn.Parameter(torch.ones(1) * initialValForFinaleAdditionOf_x2d);
         self.coeffForFinalAddition_x2d.requires_grad=True;
+
+        self.patchDownSamp=nn.Parameter(self.bandAver(50,61));
 
         # 4 Projection
         specificValOriginalModelHardCodedHere_n_resblocks = 64
@@ -179,7 +196,7 @@ class UniModel(nn.Module):
             self.coeffForFinalAddition_x2d * x2d;
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
-
+        rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
         return rightHandSideToReturn
         
         #x = x / self.img_range + self.mean

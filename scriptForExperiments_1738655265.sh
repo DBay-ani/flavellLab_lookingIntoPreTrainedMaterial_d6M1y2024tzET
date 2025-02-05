@@ -1,0 +1,5 @@
+echo 1; ( python3 src/train.py data.trainNumIDs="[2, 3, 4, 5, 6, 7, 8, 9]"  data.valNumIDs="[0]" data.testNumIDs="[1]" > log_train_stdout_$(date +%s) ) >& log_train_stderr_$(date +%s)
+echo 2; ( python3 src/train.py data.trainNumIDs="[0, 1, 4, 5, 6, 7, 8, 9]"  data.valNumIDs="[2]" data.testNumIDs="[3]" > log_train_stdout_$(date +%s) ) >& log_train_stderr_$(date +%s)
+echo 3; ( python3 src/train.py data.trainNumIDs="[0, 1, 2, 3, 6, 7, 8, 9]"  data.valNumIDs="[4]" data.testNumIDs="[5]" > log_train_stdout_$(date +%s) ) >& log_train_stderr_$(date +%s)
+echo 4; ( python3 src/train.py data.trainNumIDs="[0, 1, 2, 3, 4, 5, 8, 9]"  data.valNumIDs="[6]" data.testNumIDs="[7]" > log_train_stdout_$(date +%s) ) >& log_train_stderr_$(date +%s)
+echo 5; ( python3 src/train.py data.trainNumIDs="[0, 1, 2, 3, 4, 5, 6, 7]"  data.valNumIDs="[8]" data.testNumIDs="[9]" > log_train_stdout_$(date +%s) ) >& log_train_stderr_$(date +%s)

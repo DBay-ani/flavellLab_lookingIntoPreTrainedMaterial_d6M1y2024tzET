@@ -59,7 +59,8 @@ class UNiFluorInferDataModule(LightningDataModule):
         batch_size: int = 64,
         device: str="",
         num_workers: int = 0,
-        pin_memory: bool = False
+        pin_memory: bool = False, 
+        inch: int = 50
     ) -> None:
         """Initialize a `MNISTDataModule`.
 
@@ -143,7 +144,8 @@ class UNiFluorInferDataModule(LightningDataModule):
                 self.__dict__[thisKey] = UNiFluorInferDataset(pathToAssignmentCSV=self.pathToAssignmentCSV,\
                                                               assignedIDNumsToLoad=assignedIDNumsToLoad, \
                                                               numberOfPatchesPerImage=self.hparams.numberOfPatchesPerImage, \
-                                                              patchSize=self.hparams.patchSize);
+                                                              patchSize=self.hparams.patchSize, \
+                                                              inch=self.hparams.inch);
     
             return;
 

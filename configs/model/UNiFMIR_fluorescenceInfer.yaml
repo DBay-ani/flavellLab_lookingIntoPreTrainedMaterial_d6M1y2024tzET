@@ -5,7 +5,7 @@ _target_: src.models.UNiFMIR_fluorescenceInfer.UNiFluorInferModule
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.01
+  lr: 0.001
   weight_decay: 0.01
 
 scheduler:
@@ -78,14 +78,14 @@ args:
     print_every : 100
     data_test : 'Projection_Flywing'
     epochs : 200
-    batch_size : 1
+    batch_size : 4
     patch_size : 64
     rgb_range : 1
     n_colors : 1
     datamin : 0
     datamax : 100
     loss : '1*L1'
-    lr : 0.0001
+    lr : 0.00001
     decay : '100'
     cpu : False
     load : True

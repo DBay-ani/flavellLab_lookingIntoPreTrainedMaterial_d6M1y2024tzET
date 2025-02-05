@@ -56,7 +56,8 @@ class UNiFluorInferDataset(data.Dataset):
         assignedIDNumsToLoad : typing.List[int],\
         numberOfPatchesPerImage : int, \
         patchSize : int,
-        dtype=torch.float32,neuropal_ch_to_grab_indx=1):
+        dtype=torch.float32,neuropal_ch_to_grab_indx=1,\
+        inch=50):
         print("\n\n\n" + pathToAssignmentCSV + "\n\n\n", flush=True)
         requires(isinstance(pathToAssignmentCSV, str));
         requires(len(pathToAssignmentCSV)> 0);
@@ -92,7 +93,7 @@ class UNiFluorInferDataset(data.Dataset):
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
 
-        self.patchSize=(50,patchSize,patchSize); # patchSize);
+        self.patchSize=(inch,patchSize,patchSize); # patchSize);
         self.numberOfPatchesPerImage=numberOfPatchesPerImage;
         return;
 
@@ -145,7 +146,7 @@ class UNiFluorInferDataset(data.Dataset):
 
                 @property
                 def size(self):
-                    return numberOfPatchesPerImage;
+                    return 1; ### the patch generation code expects that the number here reflects the number of raw images, not the number of patches....  # numberOfPatchesPerImage;
     
                 @property
                 def description(self):
@@ -157,10 +158,11 @@ class UNiFluorInferDataset(data.Dataset):
         # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
         # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
         for subInd in range(0,self.numberOfPatchesPerImage):
-            newSubInd=(idx % self.numberOfPatchesPerImage)+ subInd;
+            newSubInd=idx - (idx % self.numberOfPatchesPerImage)+ subInd;
             thisObs=torch.Tensor(patches[0][newSubInd, :,:,:]).view(*self.patchSize).numpy(); #.to("cuda:0");
             thisTarget=torch.Tensor(patches[1][newSubInd, :,:,:]).view(*self.patchSize).numpy(); # .to("cuda:0");
             self.priorLoaded[newSubInd]=(thisObs, thisTarget); # readNRRDs["obs"], readNRRDs["target"]);
+       
         
         return self.priorLoaded[idx]; #readNRRDs["obs"], readNRRDs["target"] ; #, filename
     

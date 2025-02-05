@@ -14,9 +14,9 @@ class My_UNiFMIR_variant(nn.Module):
 
         super().__init__()
 
-        for x in unimodel.parameters():
-            # print(str(x.flatten()[0]))
-            x.data = torch.nan * x.data ;
+        #for x in unimodel.parameters():
+        #    # print(str(x.flatten()[0]))
+        #    x.data = torch.nan * x.data ;
 
         # NOTE: probably the last scalar will still be nan....
 
@@ -50,19 +50,19 @@ class My_UNiFMIR_variant(nn.Module):
         print(f"ASSIGNED: {numAssigned}, SKIPPED: {numSkipped}, Lengths of values read: {assignedVals}, VALUES DOUBLE-ASSIGNED TO: {intersections}", flush=True);
  
             # unimodel.load_state_dict(theseWeights, strict=False);
-        
+        """
         for x in unimodel.parameters():
             # if("_x2d" in x.name):
             #     continue;
             if(torch.any(torch.isnan(x.data))):
                 x.requires_grad=False;
-    
+        
         for thisName, x in unimodel.named_parameters():
             if(torch.any(torch.isnan(x.data))):
                 print("Named parameter unassigned to: "+ thisName, flush=True);
         
         print("UNAMED PARAMETERS: " + str(len([x for x in unimodel.parameters()]) - len([ x for x in unimodel.named_parameters()]))  , flush=True);
-
+        """
         self.model = unimodel.to("cuda:0"); 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

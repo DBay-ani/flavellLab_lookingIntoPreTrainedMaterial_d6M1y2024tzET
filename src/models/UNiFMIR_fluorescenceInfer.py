@@ -104,7 +104,7 @@ class UNiFluorInferModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        ### self.criterion = torch.nn.CrossEntropyLoss()
 
         # metric objects for calculating and averaging accuracy across batches
         ## self.train_acc = Accuracy(task="multiclass", num_classes=10)
@@ -117,7 +117,7 @@ class UNiFluorInferModule(LightningModule):
         self.test_loss = MeanMetric()
 
         # for tracking best so far validation accuracy
-        self.val_acc_best = MaxMetric()
+        # self.val_acc_best = MaxMetric()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a forward pass through the model `self.net`.
@@ -133,7 +133,7 @@ class UNiFluorInferModule(LightningModule):
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
         # self.val_acc.reset()
-        self.val_acc_best.reset()
+        # self.val_acc_best.reset()
 
     def model_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor]
@@ -149,11 +149,18 @@ class UNiFluorInferModule(LightningModule):
         """
         x, y = batch
         logits = self.forward(x)
-        loss = torch.sum((logits-y) ** 2);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
+
+        ### utility.compute_psnr_and_ssim(logits, y);
+        
+        ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
+        squaredDiff=(logits-y) ** 2;
+        loss = torch.sum(squaredDiff[~torch.isnan(squaredDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         # preds = torch.argmax(logits, dim=1)
-        for val in ["x", "y", "logits", "loss"]:
+        for val in ["x", "y", "logits", "loss", "squaredDiff"]:
             if(torch.any(torch.isnan(eval(val)))):
                 print("torch.isnan("+val+") is True", flush=True);
+        if(torch.any(torch.isnan(squaredDiff))):
+            print("number entries nan in squared diff: " + str(torch.count_nonzero(torch.isnan(squaredDiff))) + ". Size squaredDiff: " +str(squaredDiff.shape));
         return loss, logits, y
 
     def training_step(
@@ -216,9 +223,9 @@ class UNiFluorInferModule(LightningModule):
 
         # update and log metrics
         self.test_loss(loss)
-        self.test_acc(preds, targets)
+        #self.test_acc(preds, targets)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
+        # self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
