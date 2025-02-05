@@ -90,7 +90,7 @@ class UNiFluorInferDataset(data.Dataset):
                 continue;
             dirPaths.append(get_original_cwd() + "/data/"+pathToDirectory);
         self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
-        self._numberInstances=len(dirPaths);
+        self._numberInstances=len(dirPaths)* numberOfPatchesPerImage;
         self._dirPaths=dirPaths;
 
         self.patchSize=(inch,patchSize,patchSize); # patchSize);
@@ -103,15 +103,15 @@ class UNiFluorInferDataset(data.Dataset):
     def __getitem__(self, idx):
         if(idx < 0):
             raise Exception("This dataloader does not support negative indexing");
-        if(idx>=len(self._dirPaths)):
-            raise IndexError(f"Specified index {idx} is outside the bounds of list of dirPaths list of length {self._numberInstances}.");
+        if(idx>=self._numberInstances): # len(self._dirPaths)):
+            raise IndexError(f"Specified index {idx} is outside the number of instances we have of length {self._numberInstances}"); #  bounds of list of dirPaths list of length {self._numberInstances}.");
         # obs[:,:,:,:] = idx;
         # target[:,:,:,:] = idx+1;
         if(idx in self.priorLoaded):
             # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
             # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
             return self.priorLoaded[idx];
-        dirName=self._dirPaths[idx % self.numberOfPatchesPerImage];
+        dirName=self._dirPaths[idx // self.numberOfPatchesPerImage];
         readNRRDs=dict();
         # TODO: check the dimensions more carefully...
         for thisVar, thisFileName in self.usesOfSubFilesAndTheirPaths:
@@ -134,23 +134,23 @@ class UNiFluorInferDataset(data.Dataset):
             
             #readNRRDs[thisVar] = temp123; #readNRRDs[thisVar]; # .to("cuda:0");
         
-            numberOfPatchesPerImage=self.numberOfPatchesPerImage
+        numberOfPatchesPerImage=self.numberOfPatchesPerImage
 
-            class exampleRawData():
+        class exampleRawData():
 
-                def generator(self):
-                    def gen():
-                        yield readNRRDs["obs"], readNRRDs["target"], "XYZ", None ; #readNRRDs["obs"].to("cpu").numpy(), readNRRDs["target"].to("cpu").numpy(), "XYZ", None;
+            def generator(self):
+                def gen():
+                    yield readNRRDs["obs"], readNRRDs["target"], "XYZ", None ; #readNRRDs["obs"].to("cpu").numpy(), readNRRDs["target"].to("cpu").numpy(), "XYZ", None;
 
-                    return gen();
+                return gen();
 
-                @property
-                def size(self):
-                    return 1; ### the patch generation code expects that the number here reflects the number of raw images, not the number of patches....  # numberOfPatchesPerImage;
+            @property
+            def size(self):
+                return 1; ### the patch generation code expects that the number here reflects the number of raw images, not the number of patches....  # numberOfPatchesPerImage;
     
-                @property
-                def description(self):
-                    return "Internal class for forming patches of the data."
+            @property
+            def description(self):
+                return "Internal class for forming patches of the data."
 
 
         patches = create_patches( exampleRawData(), self.patchSize, self.numberOfPatchesPerImage, patch_filter=None);
@@ -159,8 +159,8 @@ class UNiFluorInferDataset(data.Dataset):
         # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
         for subInd in range(0,self.numberOfPatchesPerImage):
             newSubInd=idx - (idx % self.numberOfPatchesPerImage)+ subInd;
-            thisObs=torch.Tensor(patches[0][newSubInd, :,:,:]).view(*self.patchSize).numpy(); #.to("cuda:0");
-            thisTarget=torch.Tensor(patches[1][newSubInd, :,:,:]).view(*self.patchSize).numpy(); # .to("cuda:0");
+            thisObs=torch.Tensor(patches[0][subInd, :,:,:]).view(*self.patchSize).numpy(); #.to("cuda:0");
+            thisTarget=torch.Tensor(patches[1][subInd, :,:,:]).view(*self.patchSize).numpy(); # .to("cuda:0");
             self.priorLoaded[newSubInd]=(thisObs, thisTarget); # readNRRDs["obs"], readNRRDs["target"]);
        
         

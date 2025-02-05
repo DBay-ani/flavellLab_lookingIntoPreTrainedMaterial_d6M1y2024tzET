@@ -148,19 +148,25 @@ class UNiFluorInferModule(LightningModule):
             - A tensor of target labels.
         """
         x, y = batch
-        logits = self.forward(x)
+        xPassForward=x;
+        if(torch.any(torch.isnan(x))):
+            xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
+            xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
+            xPassForward.require_grad=False;
+        logits = self.forward(xPassForward);
 
         ### utility.compute_psnr_and_ssim(logits, y);
         
         ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
-        squaredDiff=(logits-y) ** 2;
-        loss = torch.sum(squaredDiff[~torch.isnan(squaredDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
+
+        absDiff=torch.abs(logits-y);
+        loss = torch.sum(absDiff[~torch.isnan(absDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         # preds = torch.argmax(logits, dim=1)
-        for val in ["x", "y", "logits", "loss", "squaredDiff"]:
+        for val in ["x", "y", "logits", "loss", "absDiff"]:
             if(torch.any(torch.isnan(eval(val)))):
                 print("torch.isnan("+val+") is True", flush=True);
-        if(torch.any(torch.isnan(squaredDiff))):
-            print("number entries nan in squared diff: " + str(torch.count_nonzero(torch.isnan(squaredDiff))) + ". Size squaredDiff: " +str(squaredDiff.shape));
+        if(torch.any(torch.isnan(absDiff))):
+            print("number entries nan in abs diff: " + str(torch.count_nonzero(torch.isnan(absDiff))) + ". Size absDiff: " +str(absDiff.shape));
         return loss, logits, y
 
     def training_step(

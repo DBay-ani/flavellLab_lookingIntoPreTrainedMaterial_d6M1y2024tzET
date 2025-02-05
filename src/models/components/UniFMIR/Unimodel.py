@@ -4,6 +4,9 @@ from models.components.UniFMIR.swinir import *
 import copy;
 from typing import List;
 
+from torch.nn.functional import interpolate ;
+
+
 class UniModel(nn.Module):
 
 
@@ -58,7 +61,7 @@ class UniModel(nn.Module):
         self.coeffForFinalAddition_x2d = nn.Parameter(torch.ones(1) * initialValForFinaleAdditionOf_x2d);
         self.coeffForFinalAddition_x2d.requires_grad=True;
 
-        self.patchDownSamp=nn.Parameter(self.bandAver(50,61));
+        # self.patchDownSamp=nn.Parameter(self.bandAver(50,61));
 
         # 4 Projection
         specificValOriginalModelHardCodedHere_n_resblocks = 64
@@ -196,7 +199,11 @@ class UniModel(nn.Module):
             self.coeffForFinalAddition_x2d * x2d;
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
-        rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
+        ############ rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
+        sRHS=rightHandSideToReturn.shape;
+        # Below, we make a new view since the interpolate function in use expects the first two dimensions to be
+        #     batchsize then channels.
+        rightHandSideToReturn=interpolate(rightHandSideToReturn.view(sRHS[0],1, sRHS[1], sRHS[2], sRHS[3]), (50,64,64), mode="trilinear")
         return rightHandSideToReturn
         
         #x = x / self.img_range + self.mean
