@@ -104,12 +104,12 @@ class UNiFluorInferModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        ### self.criterion = torch.nn.CrossEntropyLoss()
 
         # metric objects for calculating and averaging accuracy across batches
-        self.train_acc = Accuracy(task="multiclass", num_classes=10)
-        self.val_acc = Accuracy(task="multiclass", num_classes=10)
-        self.test_acc = Accuracy(task="multiclass", num_classes=10)
+        ## self.train_acc = Accuracy(task="multiclass", num_classes=10)
+        ## self.val_acc = Accuracy(task="multiclass", num_classes=10)
+        ## self.test_acc = Accuracy(task="multiclass", num_classes=10)
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
@@ -117,7 +117,7 @@ class UNiFluorInferModule(LightningModule):
         self.test_loss = MeanMetric()
 
         # for tracking best so far validation accuracy
-        self.val_acc_best = MaxMetric()
+        # self.val_acc_best = MaxMetric()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a forward pass through the model `self.net`.
@@ -132,8 +132,8 @@ class UNiFluorInferModule(LightningModule):
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
-        self.val_acc.reset()
-        self.val_acc_best.reset()
+        # self.val_acc.reset()
+        # self.val_acc_best.reset()
 
     def model_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor]
@@ -149,10 +149,18 @@ class UNiFluorInferModule(LightningModule):
         """
         x, y = batch
         logits = self.forward(x)
-        loss = torch.sum(logits[:,0]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
+
+        ### utility.compute_psnr_and_ssim(logits, y);
+        
+        ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
+        squaredDiff=(logits-y) ** 2;
+        loss = torch.sum(squaredDiff[~torch.isnan(squaredDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         # preds = torch.argmax(logits, dim=1)
-        for val in ["x", "y", "logits", "loss"]:
-            print("torch.isnan("+val+"):" + str(torch.any(torch.isnan(eval(val)))), flush=True)
+        for val in ["x", "y", "logits", "loss", "squaredDiff"]:
+            if(torch.any(torch.isnan(eval(val)))):
+                print("torch.isnan("+val+") is True", flush=True);
+        if(torch.any(torch.isnan(squaredDiff))):
+            print("number entries nan in squared diff: " + str(torch.count_nonzero(torch.isnan(squaredDiff))) + ". Size squaredDiff: " +str(squaredDiff.shape));
         return loss, logits, y
 
     def training_step(
@@ -169,9 +177,9 @@ class UNiFluorInferModule(LightningModule):
 
         # update and log metrics
         self.train_loss(loss)
-        self.train_acc(preds, targets)
+        ## self.train_acc(preds, targets)
         self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
+        ## self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
 
         # return loss or backpropagation will fail
         return loss
@@ -191,17 +199,18 @@ class UNiFluorInferModule(LightningModule):
 
         # update and log metrics
         self.val_loss(loss)
-        self.val_acc(preds, targets)
+        ## self.val_acc(preds, targets)
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val/acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=True)
+        ## self.log("val/acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
-        acc = self.val_acc.compute()  # get current val acc
-        self.val_acc_best(acc)  # update best so far val acc
-        # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
-        # otherwise metric would be reset by lightning after each epoch
-        self.log("val/acc_best", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
+        pass;
+        # ## acc = self.val_acc.compute()  # get current val acc
+        # self.val_acc_best(acc)  # update best so far val acc
+        # # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
+        # # otherwise metric would be reset by lightning after each epoch
+        # elf.log("val/acc_best", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -214,9 +223,9 @@ class UNiFluorInferModule(LightningModule):
 
         # update and log metrics
         self.test_loss(loss)
-        self.test_acc(preds, targets)
+        #self.test_acc(preds, targets)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
+        # self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""

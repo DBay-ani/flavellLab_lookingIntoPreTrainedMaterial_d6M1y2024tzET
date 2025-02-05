@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-import model.common as common
+from . import common ; # import .common as common
 import math
 import torch
 from torch import nn
@@ -100,7 +100,7 @@ def generalized_kernel(data, *, projection_matrix, kernel_fn=nn.ReLU(), kernel_e
 
 def orthogonal_matrix_chunk(cols, device=None):
     unstructured_block = torch.randn((cols, cols), device=device)
-    q, r = torch.qr(unstructured_block.cpu(), some=True)
+    q, r = torch.qr(unstructured_block, some=True)
     q, r = map(lambda t: t.to(device), (q, r))
     return q.t()
 

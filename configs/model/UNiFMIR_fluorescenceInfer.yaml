@@ -5,8 +5,8 @@ _target_: src.models.UNiFMIR_fluorescenceInfer.UNiFluorInferModule
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.0
-  weight_decay: 0.0
+  lr: 0.001
+  weight_decay: 0.01
 
 scheduler:
   _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -15,11 +15,52 @@ scheduler:
   factor: 0.1
   patience: 10
 
+
+
 net:
-  _target_: src.models.components.simple_dense_net.SimpleDenseNet
-  input_size: 4437160  # (x,y,z)=(322,212,65)
-  lin1_size: 22
-  output_size: 13311480 # (channels) * (x,y,z) = 3 * (322,212,65)
+  _target_: src.models.components.my_UNiFMIR_variant.My_UNiFMIR_variant # src.models.components.UniFMIR.Unimodel
+
+
+    #  weights_to_load_in_order: ["/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIR2t3_stage2VCD/model_best17.pt"
+    # , "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIRproj2stg_enlcn_2npzProjection_Flywing/model_best6.pt",
+  weights_to_load_in_order: [ "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/Uni-SwinIR/model_best.pt"]
+  unimodel:
+    _target_: src.models.components.UniFMIR.Unimodel.UniModel
+    img_size: 64
+    depths: [6, 6, 6]
+    num_heads: [6, 6, 6]
+    inch: ${...args.inch}
+    n_colors: ${...args.n_colors}
+    n_feats: ${...args.n_feats}
+    n_resblocks: ${...args.n_resblocks}
+    res_scale: ${...args.res_scale}
+    rgb_range: ${...args.rgb_range}
+    scale: ${...args.scale}
+    patch_size: ${...args.patch_size} #1
+    embed_dim: 90  # 180 // 2
+    window_size: 8
+    mlp_ratio: 2.0
+    qkv_bias: True
+    qk_scale: null
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+    norm_layer: "torch.nn.LayerNorm"
+    patch_norm: True
+    use_checkpoint: False
+    num_feat: 32
+    srscale: 2
+    initialValForFinaleAdditionOf_x2d: 0
+
+  # (channels) * (x,y,z) = 1 * (322, 212, 77)
+
+                #  , img_size=64, patch_size=1,
+                #  embed_dim=180 // 2, depths=[6, 6, 6], num_heads=[6, 6, 6],
+                #  window_size=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
+                #  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
+                #  norm_layer=nn.LayerNorm, patch_norm=True,
+                #  use_checkpoint=False, num_feat=32, srscale=2,initialValForFinaleAdditionOf_x2d=0
+
 
 # compile model for faster training with pytorch 2.0
 compile: false
@@ -32,10 +73,6 @@ args:
     resume : 0
     # pre_train : "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIRIsotropic_Liver/model_best465.pt"
         # Below is for volumetric reconstruction...
-    pre_train: 
-      upDim: "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIR2t3_stage2VCD/model_best17.pt"
-      ###projection: "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/Uni-SwinIR/model_best.pt"
-      projection: "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIRproj2stg_enlcn_2npzProjection_Flywing/model_best6.pt"
     #save : 'savename'
     test_every : 1000
     print_every : 100
@@ -48,7 +85,7 @@ args:
     datamin : 0
     datamax : 100
     loss : '1*L1'
-    lr : 0.0001
+    lr : 0.00001
     decay : '100'
     cpu : False
     load : True
@@ -72,3 +109,5 @@ args:
     weight_decay : 0
     gclip : 0
     inch: 50
+
+

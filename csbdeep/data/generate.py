@@ -9,7 +9,7 @@ import sys, os, warnings
 from tqdm import tqdm
 from ..utils import _raise, consume, compose, normalize_mi_ma, axes_dict, axes_check_and_normalize, choice
 from ..utils.six import Path
-from ..io import save_training_data
+# from io import save_training_data
 
 from .transform import Transform, permute_axes, broadcast_target
 
@@ -410,9 +410,9 @@ def create_patches(
         X = np.moveaxis(X, 1 + channel, 1)
         Y = np.moveaxis(Y, 1 + channel, 1)
     
-    if save_file is not None:
-        print('Saving data to %s.' % str(Path(save_file)))
-        save_training_data(save_file, X, Y, axes)
+    # if save_file is not None:
+    #     print('Saving data to %s.' % str(Path(save_file)))
+    #     save_training_data(save_file, X, Y, axes)
     
     return X, Y, axes
 

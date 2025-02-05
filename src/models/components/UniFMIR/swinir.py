@@ -9,9 +9,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-import model.attention as attention
-import model.common as common
-
+# import models.components.UniFMIR.attention as attention
+# import models.components.UniFMIR.common as common
+from . import attention, common; # import .attention as attention
 
 class swinir(nn.Module):
     def __init__(self, img_size=64, patch_size=1, in_chans=1, out_chans=1,
@@ -249,9 +249,11 @@ class WindowAttention(nn.Module):
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim ** -0.5
 
+        print("swinir pre-relative_position_bias_table: "+str(dict(dim=self.dim, window_size=self.window_size, num_heads=self.num_heads, head_dim=head_dim, scale=self.scale)),flush=True);
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
             torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads))  # 2*Wh-1 * 2*Ww-1, nH
+        print("swinir post-relative_position_bias_table: "+str(dict(relative_position_bias_table_shape=self.relative_position_bias_table.shape,dim=self.dim, window_size=self.window_size, num_heads=self.num_heads, head_dim=head_dim, scale=self.scale)),flush=True);
 
         # get pair-wise relative position index for each token inside the window
         coords_h = torch.arange(self.window_size[0])
@@ -357,7 +359,7 @@ class SwinTransformerBlock(nn.Module):
         if min(self.input_resolution) <= self.window_size:
             # if window size is larger than input resolution, we don't partition windows
             self.shift_size = 0
-            self.window_size = min(self.input_resolution)
+            self.window_size = min(self.input_resolution) # squirrel....
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
 
         self.norm1 = norm_layer(dim)
@@ -878,32 +880,38 @@ class UNetA(nn.Module):
 
 
 class Projhead(nn.Module):
-    def __init__(self, args, conv=common.default_conv):
+    def __init__(self, 
+        inch,
+        n_colors,
+        n_feats,
+        n_resblocks,
+        res_scale,
+        rgb_range,
+        scale ,              
+        conv=common.default_conv):
         super(Projhead, self).__init__()
         
-        n_resblock = args.n_resblocks
-        inch = args.inch
-        outch = args.n_colors
-        n_feats = args.n_feats
+        outch = n_colors
+        n_feats = n_feats
         kernel_size = 3
-        scale = args.scale[0]
+        scale = scale[0]
         act = nn.ReLU(True)
         
-        self.sub_mean = common.MeanShiftC1(args.rgb_range)
-        self.add_mean = common.MeanShiftC1(args.rgb_range, sign=1)
+        self.sub_mean = common.MeanShiftC1(rgb_range)
+        self.add_mean = common.MeanShiftC1(rgb_range, sign=1)
         m_head = [conv(inch, n_feats, kernel_size)]
         
         m_body = [attention.ENLCA(
             channel=n_feats, reduction=4,
-            res_scale=args.res_scale)]
-        for i in range(n_resblock):
+            res_scale=res_scale)]
+        for i in range(n_resblocks):
             m_body.append(common.ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=args.res_scale
+                conv, n_feats, kernel_size, act=act, res_scale=res_scale
             ))
             if (i + 1) % 8 == 0:
                 m_body.append(attention.ENLCA(
                     channel=n_feats, reduction=4,
-                    res_scale=args.res_scale))
+                    res_scale=res_scale))
         m_body.append(conv(n_feats, n_feats, kernel_size))
         
         # define tail module
