@@ -77,7 +77,7 @@ args:
     test_every : 1000
     print_every : 100
     data_test : 'Projection_Flywing'
-    epochs : 200
+    epochs : ${trainer.max_epochs}
     batch_size : 4
     patch_size : 64
     rgb_range : 1
