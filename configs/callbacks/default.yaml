@@ -6,13 +6,17 @@ defaults:
   - _self_
 
 model_checkpoint:
-  dirpath: ${paths.output_dir}/checkpoints
+  # On the below line, we use a directory on the machine's local disk
+  # to hopefully be hit less by, say, network IO that the current location of the 
+  # code etc on store1...
+  dirpath: /home/david/tempForFasterCheckpointing/${task_name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}/checkpoints ###  ${paths.output_dir}/checkpoints
   filename: "epoch_{epoch:03d}"
   monitor: "val/loss"
   mode: "min"
-  save_last: False
-  every_n_epochs: 100
+  save_last: True
+  # unfortunately effects even the saving of the best-K # every_n_epochs: 100
   auto_insert_metric_name: True
+  save_top_k: 1
 
 # early_stopping:
 #   monitor: "val/loss"

@@ -60,6 +60,7 @@ class UniModel(nn.Module):
         # self.finalAdditionOf_x2d=finalAdditionOf_x2d;
         self.coeffForFinalAddition_x2d = nn.Parameter(torch.ones(1) * initialValForFinaleAdditionOf_x2d);
         self.coeffForFinalAddition_x2d.requires_grad=True;
+        self.sigmoidOn_coeffForFinalAddition_x2d = nn.Sigmoid();
 
         # self.patchDownSamp=nn.Parameter(self.bandAver(50,61));
 
@@ -196,7 +197,7 @@ class UniModel(nn.Module):
         x = self.conv_before_upsamplev(x)
         x = self.conv_lastv(x)
         rightHandSideToReturn=x / self.img_range + self.mean + \
-            self.coeffForFinalAddition_x2d * x2d;
+            self.sigmoidOn_coeffForFinalAddition_x2d(self.coeffForFinalAddition_x2d) * x2d;
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
         ############ rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
