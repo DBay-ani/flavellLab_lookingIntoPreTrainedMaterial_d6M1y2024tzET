@@ -48,7 +48,8 @@ class UniModel(nn.Module):
         use_checkpoint, \
         num_feat, \
         srscale, \
-        initialValForFinaleAdditionOf_x2d \
+        initialValForFinaleAdditionOf_x2d, \
+        train_finaleAdditionOf_x2d \
     ) -> None:
         super(UniModel, self).__init__()
 
@@ -59,7 +60,7 @@ class UniModel(nn.Module):
 
         # self.finalAdditionOf_x2d=finalAdditionOf_x2d;
         self.coeffForFinalAddition_x2d = nn.Parameter(torch.ones(1) * initialValForFinaleAdditionOf_x2d);
-        self.coeffForFinalAddition_x2d.requires_grad=True;
+        self.coeffForFinalAddition_x2d.requires_grad=train_finaleAdditionOf_x2d;
         self.sigmoidOn_coeffForFinalAddition_x2d = nn.Sigmoid();
 
         # self.patchDownSamp=nn.Parameter(self.bandAver(50,61));

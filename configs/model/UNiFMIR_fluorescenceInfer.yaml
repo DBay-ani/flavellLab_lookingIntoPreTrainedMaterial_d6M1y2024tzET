@@ -50,7 +50,8 @@ net:
     use_checkpoint: False
     num_feat: 32
     srscale: 2
-    initialValForFinaleAdditionOf_x2d: 0
+    initialValForFinaleAdditionOf_x2d: -0.025 # vaguely based on some experimentation.... once it passes through the Sigmoid, it takes value 0.4938 ....
+    train_finaleAdditionOf_x2d: False
 
   # (channels) * (x,y,z) = 1 * (322, 212, 77)
 
