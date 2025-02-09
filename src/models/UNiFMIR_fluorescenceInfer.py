@@ -103,6 +103,8 @@ class UNiFluorInferModule(LightningModule):
 
         self.net = net
 
+        self.nanCounts={x : 0 for x in ["x", "y", "logits", "loss", "absDiff"] };
+
         # loss function
         ### self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -165,6 +167,7 @@ class UNiFluorInferModule(LightningModule):
         for val in ["x", "y", "logits", "loss", "absDiff"]:
             if(torch.any(torch.isnan(eval(val)))):
                 print("torch.isnan("+val+") is True", flush=True);
+                self.nanCounts[val] = 1 + self.nanCounts.get(val,0) ;
         if(torch.any(torch.isnan(absDiff))):
             print("number entries nan in abs diff: " + str(torch.count_nonzero(torch.isnan(absDiff))) + ". Size absDiff: " +str(absDiff.shape));
         return loss, logits, y
@@ -186,7 +189,9 @@ class UNiFluorInferModule(LightningModule):
         ## self.train_acc(preds, targets)
         self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
         ## self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
-
+        self.log("train/param/finalRes", self.net.model.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True); 
+        for val in self.nanCounts.keys():
+            self.log("train/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
         # return loss or backpropagation will fail
         return loss
 
@@ -208,6 +213,10 @@ class UNiFluorInferModule(LightningModule):
         ## self.val_acc(preds, targets)
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
         ## self.log("val/acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=True)
+        for val in self.nanCounts.keys():
+            self.log("val/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
+
+
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -232,6 +241,10 @@ class UNiFluorInferModule(LightningModule):
         #self.test_acc(preds, targets)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
         # self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
+        for val in self.nanCounts.keys():
+            self.log("test/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
+
+
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
