@@ -5,7 +5,7 @@ _target_: src.models.UNiFMIR_fluorescenceInfer.UNiFluorInferModule
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.001
+  lr: ${model.args.lr}
   weight_decay: 0.01
 
 scheduler:
@@ -13,7 +13,7 @@ scheduler:
   _partial_: true
   mode: min
   factor: 0.57 ### 0.57 ** 4 roughly is 0.1...
-  patience: 50
+  patience: 20
 
 
 
@@ -86,7 +86,7 @@ args:
     datamin : 0
     datamax : 100
     loss : '1*L1'
-    lr : 0.00001
+    lr : 0.01
     decay : '100'
     cpu : False
     load : True

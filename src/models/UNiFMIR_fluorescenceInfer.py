@@ -161,7 +161,7 @@ class UNiFluorInferModule(LightningModule):
         
         ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
 
-        absDiff=torch.abs(logits-y);
+        absDiff=torch.abs(logits- (y-x)); #(y/(x-+1.0))**2);
         loss = torch.sum(absDiff[~torch.isnan(absDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         # preds = torch.argmax(logits, dim=1)
         for val in ["x", "y", "logits", "loss", "absDiff"]:
@@ -193,6 +193,11 @@ class UNiFluorInferModule(LightningModule):
         for val in self.nanCounts.keys():
             self.log("train/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
         # return loss or backpropagation will fail
+        LRs=[x["lr"] for x in self.optimizers().state_dict()["param_groups"]];
+        self.log("train/LRs/min", min(LRs), on_step=False, on_epoch=True, prog_bar=True);
+        self.log("train/LRs/max", max(LRs), on_step=False, on_epoch=True, prog_bar=True);
+        for q in range(1,10):
+            self.log("train/LRs/q0."+str(q), np.quantile(LRs, (q/10)), on_step=False, on_epoch=True, prog_bar=True);
         return loss
 
     def on_train_epoch_end(self) -> None:
@@ -243,7 +248,8 @@ class UNiFluorInferModule(LightningModule):
         # self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
         for val in self.nanCounts.keys():
             self.log("test/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
-
+        
+        # print(str(self.optimizers().state_dict()), flush=True); # .state_dict()), flush=True);
 
 
     def on_test_epoch_end(self) -> None:
@@ -271,7 +277,16 @@ class UNiFluorInferModule(LightningModule):
 
         :return: A dict containing the configured optimizers and learning-rate schedulers to be used for training.
         """
-        optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())
+        optimizationVals=[];
+        # Below line uses reversed since my recollection is that the default order returned
+        # by the parameters() function is earliest-registered to latest-registered...
+        rateDecrease = (252/ 255);#( (1.0 /  8 ) * 6 ); # 1/8 is representable fully in float, and the values as chosen here get the
+                                            # gradients to be about 5% of their value after 10 layers etc.
+        for index, param in enumerate(reversed([ x for x in self.trainer.model.parameters()])):
+            thisLR = self.hparams.args.lr * ( rateDecrease ** (index // 2)); ### //2 to account for the typical weights+bias combination
+            optimizationVals.append({"params": param, "lr": thisLR});
+        optimizer = self.hparams.optimizer( # params=self.trainer.model.parameters())
+                optimizationVals                 )
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)
             return {
