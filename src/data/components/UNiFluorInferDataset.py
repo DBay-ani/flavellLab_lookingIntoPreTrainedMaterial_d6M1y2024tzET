@@ -65,8 +65,8 @@ class UNiFluorInferDataset(data.Dataset):
         self.usesOfSubFilesAndTheirPaths : typing.Tuple[typing.Tuple[str,str],typing.Tuple[str,str]] = \
                                                  [("obs", "all_red.nrrd"), ("target", "NeuroPAL.nrrd")];
         fh=open(self.pathToSplitSpecification,"r");
-        dirPaths=[(get_original_cwd() + "/data/"+x) for x in fh.read().split("\n") if (len(x) > 0)];            
-        self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
+        dirPaths=[(get_original_cwd().replace("forRunningCPUInference_lookingIntoPreTrainedMaterial_d6M1y2024tzET", "lookingIntoPreTrainedMaterial_d6M1y2024tzET") + "/data/"+x) for x in fh.read().split("\n") if (len(x) > 0)];            
+        # self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
         self._numberInstances=len(dirPaths);
         self._dirPaths=dirPaths;
         return;
@@ -85,7 +85,7 @@ class UNiFluorInferDataset(data.Dataset):
             # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
             # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
             return self.priorLoaded[idx];
-        dirName=self._dirPaths[idx];
+        dirName=self._dirPaths[idx].replace("forRunningCPUInference_lookingIntoPreTrainedMaterial_d6M1y2024tzET", "lookingIntoPreTrainedMaterial_d6M1y2024tzET");
         readNRRDs=dict();
         for thisVar, thisFileName in self.usesOfSubFilesAndTheirPaths:
             temp = nrrd.read(dirName + thisFileName, index_order="F"); #, dtype=self.dtype);

@@ -21,6 +21,8 @@ import nrrd;
 from csbdeep.data.generate import create_patches
 
 
+from torch.nn.functional import interpolate ;
+
 class UNiFluorInferDataset(data.Dataset):
 
     @staticmethod
@@ -88,7 +90,7 @@ class UNiFluorInferDataset(data.Dataset):
             numIDOfSplit, pathToDirectory = thisLine.split(",");
             if(int(numIDOfSplit) not in assignedIDNumsToLoad):
                 continue;
-            dirPaths.append(get_original_cwd() + "/data/"+pathToDirectory);
+            dirPaths.append(get_original_cwd().replace("forRunningCPUInference_lookingIntoPreTrainedMaterial_d6M1y2024tzET", "lookingIntoPreTrainedMaterial_d6M1y2024tzET") + "/data/"+pathToDirectory);
         self._checkFilePathsLoaded(dirPaths,tuple([x[1] for x in self.usesOfSubFilesAndTheirPaths]));
         self._numberInstances=len(dirPaths)* numberOfPatchesPerImage;
         self._dirPaths=dirPaths;
@@ -120,20 +122,21 @@ class UNiFluorInferDataset(data.Dataset):
             if(thisVar=="target"):
                 # assert(temp[0].shape == tuple(self.confocalVolumeDims + [3]));
                 readNRRDs[thisVar] = readNRRDs[thisVar][:,:,:,self.neuropal_ch_to_grab_indx];
-            # readNRRDs[thisVar]= torch.from_numpy(readNRRDs[thisVar]).to(dtype=self.dtype).reshape(*([1] + self.confocalVolumeDims))
-            temp123=readNRRDs[thisVar]; #.to(dtype=self.dtype)
-            
-            print(f"\n\n{thisFileName}:{temp123.shape}")
-            readNRRDs[thisVar]=np.zeros(tuple(self.confocalVolumeDims)); # ,dtype=self.dtype); #temp123.reshape(*([1] + list(temp123.shape)))
-            indexRange=[min(x,y) for x,y in zip(self.confocalVolumeDims, temp123.shape)]
-            readNRRDs[thisVar][:(indexRange[0]),:(indexRange[1]),:(indexRange[2])] = temp123[:(indexRange[0]),:(indexRange[1]),:(indexRange[2])];
-            # assert(readNRRDs[thisVar].shape == tuple([1] + self.confocalVolumeDims));
-            ##### assert(isinstance(readNRRDs[thisVar] , torch.Tensor));
-            # assert(readNRRDs[thisVar].dtype == self.dtype );
-            ########## assert(readNRRDs[thisVar].requires_grad == False );
-            
-            #readNRRDs[thisVar] = temp123; #readNRRDs[thisVar]; # .to("cuda:0");
-        
+            presentSize=readNRRDs[thisVar].shape;
+            assert(len(presentSize) == 3);
+            longestAxisTarget=64 *3;
+            shortAxis= max(64, int((presentSize[1]/presentSize[0])* longestAxisTarget));
+            rightHandSideToReturn = interpolate(\
+                (torch.Tensor(readNRRDs[thisVar])).view((1,1, readNRRDs[thisVar].shape[0], readNRRDs[thisVar].shape[1], readNRRDs[thisVar].shape[2])), \
+                (longestAxisTarget ,shortAxis, 70), \
+                mode="trilinear");
+            # To make use of the fact that the patch-sizes of the pre-trained networks we return are
+            # (50, 64, 64).
+            assert(rightHandSideToReturn.shape[0:2] == (1,1));
+            rightHandSideToReturn=rightHandSideToReturn[0,0,:,:,:];
+            rightHandSideToReturn =torch.transpose(rightHandSideToReturn, dim0=0,dim1=2)
+            readNRRDs[thisVar] = rightHandSideToReturn; 
+
         numberOfPatchesPerImage=self.numberOfPatchesPerImage
 
         class exampleRawData():

@@ -20,7 +20,7 @@ from omegaconf import DictConfig
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
-pathToModel="logs/train/runs/2025-02-05_06-12-03/checkpoints/epoch_epoch=590.ckpt"
+pathToModel='/home/david/tempForFasterCheckpointing/train/runs/2025-02-06_21-49-41/checkpoints/epoch_epoch=024.ckpt';   #"logs/train/runs/2025-02-05_06-12-03/checkpoints/epoch_epoch=590.ckpt"
 
 
 import matplotlib.pyplot as plt

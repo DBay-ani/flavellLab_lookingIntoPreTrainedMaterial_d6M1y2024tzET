@@ -63,7 +63,7 @@ class My_UNiFMIR_variant(nn.Module):
         
         print("UNAMED PARAMETERS: " + str(len([x for x in unimodel.parameters()]) - len([ x for x in unimodel.named_parameters()]))  , flush=True);
         """
-        self.model = unimodel.to("cpu"); # .to("cuda:0"); 
+        self.model = unimodel.to("cuda:0"); 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.

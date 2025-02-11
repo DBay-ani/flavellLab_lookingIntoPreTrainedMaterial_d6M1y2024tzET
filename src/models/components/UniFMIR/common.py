@@ -26,9 +26,9 @@ class MeanShift(nn.Conv2d):
         rgb_mean=(0.4488, 0.4371, 0.4040), rgb_std=(1.0, 1.0, 1.0), sign=-1):
 
         super(MeanShift, self).__init__(3, 3, kernel_size=1)
-        std = torch.Tensor(rgb_std,device="cpu")
+        std = torch.Tensor(rgb_std)
         self.weight.data = torch.eye(3).view(3, 3, 1, 1) / std.view(3, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean, device="cpu") / std
+        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std
         for p in self.parameters():
             p.requires_grad = False
 
@@ -37,10 +37,10 @@ class MeanShiftC1(nn.Conv2d):
     def __init__(self, rgb_range, rgb_mean=(0.4299667,), rgb_std=1, sign=-1):
 
         super(MeanShiftC1, self).__init__(1, 1, kernel_size=1)
-        std = torch.Tensor(rgb_std) # .to("cuda:0")
+        std = torch.Tensor(rgb_std).to("cuda:0")
         print("\n\n\n\n\n\n" + str(std.device)+","+str(torch.ones(1, 1, 1, 1).device))
         self.weight.data = torch.ones(1, 1, 1, 1) / std.view(1, 1, 1, 1)
-        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean) / std # .to("cuda:0") / std
+        self.bias.data = sign * rgb_range * torch.Tensor(rgb_mean).to("cuda:0") / std
         for p in self.parameters():
             p.requires_grad = False
 
