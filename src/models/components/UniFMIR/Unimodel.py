@@ -154,6 +154,10 @@ class UniModel(nn.Module):
         # except: 
         #     print("_init_weights:" + str(m)[:1000], flush=True);
         # return;
+        
+        pass ; 
+        # TODO: move the code that loads from file to here.
+        """
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -161,7 +165,8 @@ class UniModel(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-    
+        """
+
     def check_image_size(self, x):
         _, _, h, w = x.size()
         mod_pad_h = (self.window_size - h % self.window_size) % self.window_size

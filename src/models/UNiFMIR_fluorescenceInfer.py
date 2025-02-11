@@ -5,6 +5,7 @@ from lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 
+from torchmetrics.image import StructuralSimilarityIndexMeasure;
 
 import faulthandler
 
@@ -103,7 +104,7 @@ class UNiFluorInferModule(LightningModule):
 
         self.net = net
 
-        self.nanCounts={x : 0 for x in ["x", "y", "logits", "loss", "absDiff"] };
+        self.nanCounts={x : 0 for x in ["x", "y", "logits", "loss"] };
 
         # loss function
         ### self.criterion = torch.nn.CrossEntropyLoss()
@@ -120,6 +121,8 @@ class UNiFluorInferModule(LightningModule):
 
         # for tracking best so far validation accuracy
         # self.val_acc_best = MaxMetric()
+
+        self.ssim= StructuralSimilarityIndexMeasure();
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a forward pass through the model `self.net`.
@@ -161,15 +164,17 @@ class UNiFluorInferModule(LightningModule):
         
         ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
 
-        absDiff=torch.abs(logits- (y-x)); #(y/(x-+1.0))**2);
+        """
+        absDiff= torch.abs(logits- (y-x)); #(y/(x-+1.0))**2);
         loss = torch.sum(absDiff[~torch.isnan(absDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
+        """
+        assert(logits.shape == (x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3]));
+        loss = -self.ssim(logits[~torch.isnan(logits)].reshape(x.shape), x[~torch.isnan(x)].reshape(x.shape));
         # preds = torch.argmax(logits, dim=1)
-        for val in ["x", "y", "logits", "loss", "absDiff"]:
+        for val in ["x", "y", "logits", "loss"]:
             if(torch.any(torch.isnan(eval(val)))):
                 print("torch.isnan("+val+") is True", flush=True);
                 self.nanCounts[val] = 1 + self.nanCounts.get(val,0) ;
-        if(torch.any(torch.isnan(absDiff))):
-            print("number entries nan in abs diff: " + str(torch.count_nonzero(torch.isnan(absDiff))) + ". Size absDiff: " +str(absDiff.shape));
         return loss, logits, y
 
     def training_step(
