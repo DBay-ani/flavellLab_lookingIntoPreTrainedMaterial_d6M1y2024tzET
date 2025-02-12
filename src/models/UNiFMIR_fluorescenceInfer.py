@@ -158,7 +158,17 @@ class UNiFluorInferModule(LightningModule):
             xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
             xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
             xPassForward.require_grad=False;
-        logits = self.forward(xPassForward);
+        xPassForward=xPassForward + torch.rand(*xPassForward.shape) * 0.02 * torch.mean(xPassForward);
+        logits=torch.ones(1) * torch.nan;
+        for iterationNum in range(0,20):
+            logits = self.forward(xPassForward);
+            if(not torch.any(torch.isnan(logits))):
+                break;
+            xPassForward=0.9* xPassForward;
+            y=0.9*y;
+            self.hparams.optimizer.zero_grad()
+
+
 
         ### utility.compute_psnr_and_ssim(logits, y);
         
@@ -169,8 +179,16 @@ class UNiFluorInferModule(LightningModule):
         loss = torch.sum(absDiff[~torch.isnan(absDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         """
         assert(logits.shape == (x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3]));
-        loss = -self.ssim(logits[~torch.isnan(logits)].reshape(x.shape), x[~torch.isnan(x)].reshape(x.shape));
-        # preds = torch.argmax(logits, dim=1)
+        logits=logits[:,0,:,:];
+        loss = -self.ssim(logits.reshape(y.shape), y.reshape(y.shape)); #.reshape(y.shape))
+        #### logits2= torch.max(torch.zeros(*y.shape), logits - torch.quantile(logits,0.7)) * 100;   #(logits/(torch.max(logits)+0.01)) ** 4;
+        #### y2=torch.max(torch.zeros(*y.shape), y - torch.quantile(y,0.7)) * 100    #(y/(torch.max(y)+0.01))**4;
+        ### loss =loss-self.ssim(logits2.reshape(y.shape), y2.reshape(y.shape));
+        ### brightnessMask=(y <= torch.quantile(y,0.60));
+        ### brightnessMask=( logits > y) & brightnessMask;
+        ### extraBrightnessPenalty=torch.sum(torch.abs(logits[brightnessMask] - y[brightnessMask]) );
+        ### loss = loss * (x.shape[0] * x.shape[1] * x.shape[2] * x.shape[3])  + extraBrightnessPenalty
+        ### preds = torch.argmax(logits, dim=1)
         for val in ["x", "y", "logits", "loss"]:
             if(torch.any(torch.isnan(eval(val)))):
                 print("torch.isnan("+val+") is True", flush=True);

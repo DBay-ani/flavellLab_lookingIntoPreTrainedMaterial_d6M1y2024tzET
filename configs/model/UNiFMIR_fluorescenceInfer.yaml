@@ -9,11 +9,11 @@ optimizer:
   weight_decay: 0.01
 
 scheduler:
-  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _target_:  torch.optim.lr_scheduler.ReduceLROnPlateau
   _partial_: true
   mode: min
   factor: 0.57 ### 0.57 ** 4 roughly is 0.1...
-  patience: 20
+  patience: 25
 
 
 
@@ -86,7 +86,7 @@ args:
     datamin : 0
     datamax : 100
     loss : '1*L1'
-    lr : 0.001
+    lr : 0.01
     decay : '100'
     cpu : False
     load : True
