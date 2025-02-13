@@ -166,7 +166,7 @@ class UNiFluorInferModule(LightningModule):
                 break;
             xPassForward=0.9* xPassForward;
             y=0.9*y;
-            self.hparams.optimizer.zero_grad()
+            self.optimizers().zero_grad()
 
 
 
@@ -305,6 +305,7 @@ class UNiFluorInferModule(LightningModule):
         # by the parameters() function is earliest-registered to latest-registered...
         rateDecrease = (252/ 255);#( (1.0 /  8 ) * 6 ); # 1/8 is representable fully in float, and the values as chosen here get the
                                             # gradients to be about 5% of their value after 10 layers etc.
+        rateDecrease=rateDecrease**2;
         for index, param in enumerate(reversed([ x for x in self.trainer.model.parameters()])):
             thisLR = self.hparams.args.lr * ( rateDecrease ** (index // 2)); ### //2 to account for the typical weights+bias combination
             optimizationVals.append({"params": param, "lr": thisLR});
