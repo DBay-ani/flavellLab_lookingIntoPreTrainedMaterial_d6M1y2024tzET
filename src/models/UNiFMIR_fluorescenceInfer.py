@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List;
 
 import torch
 from lightning import LightningModule
@@ -41,6 +41,7 @@ from omegaconf import DictConfig, OmegaConf
 # from pytorch_lightning import Trainer
 from hydra.utils import instantiate
 
+from src.utils.contracts import requires, ensures; 
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,8 @@ class UNiFluorInferModule(LightningModule):
 
         self.net = net
 
+        self.model_step_invocationNum=0;
+
         self.nanCounts={x : 0 for x in ["x", "y", "logits", "loss"] };
 
         # loss function
@@ -140,8 +143,42 @@ class UNiFluorInferModule(LightningModule):
         # self.val_acc.reset()
         # self.val_acc_best.reset()
 
+    @staticmethod
+    def patchNans(val : torch.Tensor, copyIfNonNan:bool=False) -> torch.Tensor:
+        if(torch.any(torch.isnan(val))):
+            valReturn=torch.mean(x[~torch.isnan(val)])*torch.ones(val.shape,dtype=val.dtype);
+            valReturn[~torch.isnan(val)] = val[~torch.isnan(val)];
+        elif(copyIfNonNan):
+            raise NotImplementedError("Ideally would return a copy of the tensor with" + \
+                                      "totally seperate allocated memory, via copy or so forth."+\
+                                      "At present, not implemented... though writting this message may"+\
+                                      "have been more work in retrospect.....(!)...ca la vie");
+        else:
+            valReturn=val;
+        ensures(valReturn.shape == val.shape);
+        ensures(valReturn.dtype == val.dtype);
+        return valReturn;
+
+    def baseLineLossComp(self, targetVal : torch.Tensor, labelPrefix: str, nameList : List[str], valList:List[torch.Tensor], shapeTemplate:Tuple[int,...]) -> None:
+        requires(len(labelPrefix) > 0);
+        requires(labelPrefix[-1] == "/");
+        requires(len(valList) == len(nameList));
+        requires(len(nameList) > 0);
+        requires(len(shapeTemplate) > 0);
+        requires(all([ (x > 0) for x in shapeTemplate]));
+        requires(all([ (len(w) > 0) for w in nameList]));
+        requires(targetVal.shape == shapeTemplate);
+        with torch.no_grad():
+            for valName, val in zip(nameList, valList):
+                self.log(labelPrefix + "numNan/"+valName, torch.sum(torch.isnan(val)), on_step=True, on_epoch=True, prog_bar=False, batch_size=1);
+                val=self.patchNans(val);
+                thisSSIM= - StructuralSimilarityIndexMeasure()(val.reshape(shapeTemplate), targetVal.reshape(shapeTemplate));
+                self.log(labelPrefix + "ssim_baseline/"+valName, thisSSIM, on_step=True, on_epoch=True, prog_bar=False, batch_size=1);
+        return;
+
+
     def model_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor]
+        self, batch: Tuple[torch.Tensor, torch.Tensor], name_step_type="unlabeled"
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform a single model step on a batch of data.
 
@@ -152,6 +189,10 @@ class UNiFluorInferModule(LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
+
+        self.log(name_step_type+"/step_invoc_num", self.model_step_invocationNum, on_step=True, on_epoch=True);
+        self.model_step_invocationNum=self.model_step_invocationNum+1;
+
         x, y = batch
         xPassForward=x;
         if(torch.any(torch.isnan(x))):
@@ -159,15 +200,25 @@ class UNiFluorInferModule(LightningModule):
             xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
             xPassForward.require_grad=False;
         xPassForward=xPassForward + torch.rand(*xPassForward.shape) * 0.02 * torch.mean(xPassForward);
+
+        self.baseLineLossComp(y, name_step_type+"/pre_lum_reduc/", ["x", "xPF"], [x,xPassForward], y.shape);
+
         logits=torch.ones(1) * torch.nan;
+        lumReduceProp=0.9;
+        initialY=y;
         for iterationNum in range(0,20):
             logits = self.forward(xPassForward);
             if(not torch.any(torch.isnan(logits))):
                 break;
-            xPassForward=0.9* xPassForward;
-            y=0.9*y;
+            xPassForward=lumReduceProp* xPassForward;
+            y=lumReduceProp*y;
             self.optimizers().zero_grad()
 
+        self.log(name_step_type+"/int_lum_reduc", iterationNum, on_step=True, on_epoch=True, prog_bar=False, batch_size=1);
+
+        self.baseLineLossComp(y, name_step_type+"/post_lum_reduc/", \
+            ["x", "xPF", "y_pre_post"], \
+            [x * (lumReduceProp ** iterationNum),xPassForward, initialY], y.shape);
 
 
         ### utility.compute_psnr_and_ssim(logits, y);
@@ -191,8 +242,9 @@ class UNiFluorInferModule(LightningModule):
         ### preds = torch.argmax(logits, dim=1)
         for val in ["x", "y", "logits", "loss"]:
             if(torch.any(torch.isnan(eval(val)))):
-                print("torch.isnan("+val+") is True", flush=True);
+                #print("torch.isnan("+val+") is True", flush=True);
                 self.nanCounts[val] = 1 + self.nanCounts.get(val,0) ;
+                self.log(name_step_type+"/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True, batch_size=1);
         return loss, logits, y
 
     def training_step(
@@ -205,22 +257,20 @@ class UNiFluorInferModule(LightningModule):
         :param batch_idx: The index of the current batch.
         :return: A tensor of losses between model predictions and targets.
         """
-        loss, preds, targets = self.model_step(batch)
+        loss, preds, targets = self.model_step(batch,"train")
 
         # update and log metrics
         self.train_loss(loss)
         ## self.train_acc(preds, targets)
-        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
         ## self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/param/finalRes", self.net.model.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True); 
-        for val in self.nanCounts.keys():
-            self.log("train/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
+        self.log("train/param/finalRes", self.net.model.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True, batch_size=1); 
         # return loss or backpropagation will fail
         LRs=[x["lr"] for x in self.optimizers().state_dict()["param_groups"]];
-        self.log("train/LRs/min", min(LRs), on_step=False, on_epoch=True, prog_bar=True);
-        self.log("train/LRs/max", max(LRs), on_step=False, on_epoch=True, prog_bar=True);
+        self.log("train/LRs/min", min(LRs), on_step=False, on_epoch=True, prog_bar=True,batch_size=1);
+        self.log("train/LRs/max", max(LRs), on_step=False, on_epoch=True, prog_bar=True,batch_size=1);
         for q in range(1,10):
-            self.log("train/LRs/q0."+str(q), np.quantile(LRs, (q/10)), on_step=False, on_epoch=True, prog_bar=True);
+            self.log("train/LRs/q0."+str(q), np.quantile(LRs, (q/10)), on_step=False, on_epoch=True, prog_bar=True,batch_size=1);
         return loss
 
     def on_train_epoch_end(self) -> None:
@@ -234,15 +284,13 @@ class UNiFluorInferModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        loss, preds, targets = self.model_step(batch,"val")
 
         # update and log metrics
         self.val_loss(loss)
         ## self.val_acc(preds, targets)
-        self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True,batch_size=1)
         ## self.log("val/acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=True)
-        for val in self.nanCounts.keys():
-            self.log("val/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
 
 
 
@@ -262,15 +310,13 @@ class UNiFluorInferModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        loss, preds, targets = self.model_step(batch,"test")
 
         # update and log metrics
         self.test_loss(loss)
         #self.test_acc(preds, targets)
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True,batch_size=1)
         # self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
-        for val in self.nanCounts.keys():
-            self.log("test/nanCounts/"+val, self.nanCounts[val], on_step=False, on_epoch=True, prog_bar=True);
         
         # print(str(self.optimizers().state_dict()), flush=True); # .state_dict()), flush=True);
 
