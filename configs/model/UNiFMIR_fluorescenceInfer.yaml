@@ -78,7 +78,7 @@ args:
     print_every : 100
     data_test : 'Projection_Flywing'
     epochs : 200
-    batch_size : 4
+    batch_size : 1
     patch_size : 64
     rgb_range : 1
     n_colors : 1

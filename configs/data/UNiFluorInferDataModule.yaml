@@ -1,6 +1,6 @@
 _target_: src.data.UNiFluorInferDataModule_datamodule.UNiFluorInferDataModule
 pathToSplitSpecifications: "${paths.data_dir}finalNeuropalAndAllRed_fromData1_1738036465_62e9b372-aedf-464d-a27e-b7b255c1c56d/data_splits/splits_1738076008_89743580-08f9-42f1-b721-53f6b05152b6/"
-batch_size: 4  # 256 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+batch_size: 1  # 256 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 num_workers: 0
 pin_memory: False
 device: ${default_device}

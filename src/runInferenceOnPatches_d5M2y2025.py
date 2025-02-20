@@ -22,6 +22,7 @@ rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 # pathToModel="logs/train/runs/2025-02-05_06-12-03/checkpoints/epoch_epoch=590.ckpt"
 pathToModel='/home/david/tempForFasterCheckpointing/train/runs/2025-02-06_21-49-41/checkpoints/epoch_epoch=024.ckpt';   
+pathToModel='/home/david/tempForFasterCheckpointing/train/runs/2025-02-13_01-14-17/checkpoints/epoch_epoch=059.ckpt';
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +38,7 @@ plt.axis('off')  # Hide the axes
 plt.savefig('matrix.png')
 """
 
-@hydra.main(version_base="1.3", config_path="../configs", config_name="runInferenceOnPatches_d5M2y2025.yaml")
+@hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml") # runInferenceOnPatches_d5M2y2025.yaml")
 def main(cfg: DictConfig): # -> Optional[float]:
     """Main entry point for training.
 
@@ -74,16 +75,21 @@ def main(cfg: DictConfig): # -> Optional[float]:
     
         # 4. Set the model to evaluation mode if needed
         model.eval()
-    
+
+
         flattenFunct=(lambda z: torch.max(z,dim=1)[0].reshape(64,64) );
     
-        for indx, batch in enumerate(datamodule.val_dataloader()):
+        for indx, batch in enumerate(datamodule.train_dataloader()):
             x,y = batch;
             yHat = model.forward(x);
+            if(torch.any(torch.isnan(yHat))):
+                raise Exception("Nan encountered");
             print(str([z.shape for z in [x,y,yHat]]),flush=True);
             x=flattenFunct(x);
             y=flattenFunct(y);
+            #y =(y/(x+1));
             yHat=flattenFunct(yHat[0,:,:,:,:]);
+            # yHat=(yHat/(x+1));
             print(str([z.dtype for z in [x,y,yHat]]),flush=True);
             print(str([z.shape for z in [x,y,yHat]]),flush=True);
             """
@@ -102,21 +108,34 @@ def main(cfg: DictConfig): # -> Optional[float]:
                 exec( name + " = torch.clamp(" + str(name) + ", 0, 1)");
                 print(str([ f(eval(name)) for f in [torch.min, torch.max, torch.median, torch.mean, torch.sum]]), flush=True);
             """
-            for name in [x, y, yHat]:
-                tail=0.015
+            # yHat=yHat+x;
+
+            for n, name in zip(["x","y","yHat"], [x, y, yHat]):
+                tail=0.005
                 name.data = (name.data-torch.quantile(name.data,tail))/(torch.quantile(name.data,1-tail) - torch.quantile(name.data,tail));
                 name.data  = torch.clamp( name.data , 0, 1);
-                print(str([ f(name) for f in [torch.min, torch.max, torch.median, torch.mean, torch.sum]]), flush=True);
-
+                
+                """name.data=torch.zeros(*name.shape);
+                for w in range(0, name.shape[1]):
+                    name[:,w]=w;"""
+                """localQuants=[torch.quantile(name.flatten(), w/100.0).item() for w in range(1,101)];
+                temp = torch.zeros(*name.shape);
+                for indx2, w in enumerate(localQuants):
+                    ### temp[eval(n) > w] = (indx/100.0);
+                    temp[name > w] = (indx2/100.0);
+                #exec(n + "=temp");
+                name.data=temp.data
+                # print(str([ f(name) for f in [torch.item(), torch.max, torch.median, torch.mean, torch.sum]]), flush=True);
+                """
 
             for val in [x, y,yHat]:
                 print(str([ f(val) for f in [torch.min, torch.max, torch.median, torch.mean, torch.sum]]), flush=True);
            
             print("\n");
             together=torch.cat((x,y,yHat),dim=1);
-            plt.imshow(together, cmap='gray')
+            plt.imshow(together.cpu().numpy(), cmap='gray')
             plt.axis('off');
-            plt.savefig("./data/inferenceExamples/652df99d-8110-4ddd-a475-7872344fdab6/" + str(indx)+'_together.png')
+            plt.savefig("./data/inferenceExamples/train/" + str(indx)+'_together.png')
             
     return cfg;
     
