@@ -196,8 +196,9 @@ class UNiFluorInferModule(LightningModule):
         x, y = batch
         xPassForward=x;
         if(torch.any(torch.isnan(x))):
-            xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
-            xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
+            # xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
+            # xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
+            xPassForward=self.patchNans(x);
             xPassForward.require_grad=False;
         xPassForward=xPassForward + torch.rand(*xPassForward.shape) * 0.02 * torch.mean(xPassForward);
 
@@ -358,7 +359,8 @@ class UNiFluorInferModule(LightningModule):
         optimizer = self.hparams.optimizer( # params=self.trainer.model.parameters())
                 optimizationVals                 )
         if self.hparams.scheduler is not None:
-            scheduler = self.hparams.scheduler(optimizer=optimizer)
+            scheduler = self.hparams.scheduler(optimizer=optimizer, base_lr=[ x["lr"] * (rateDecrease ** 12)  for x in optimizationVals], 
+                                                                    max_lr= [  x["lr"] * (rateDecrease ** 12)   for x in optimizationVals])
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
