@@ -202,8 +202,14 @@ class UniModel(nn.Module):
         x = xfe
         x = self.conv_before_upsamplev(x)
         x = self.conv_lastv(x)
+        # Note that the multiplication by 5 below is _not_ the same as tweaking the self.coeff[...]
+        # initial value, due to how learning-rates function etc. By  the way:
+        # >>> A(torch.tensor(5))
+        # tensor(0.9933)
+        # and 12.5 * 0.8 == 1
+        # 12.5 * 5 == 62.5
         rightHandSideToReturn=x / self.img_range + self.mean + \
-            self.sigmoidOn_coeffForFinalAddition_x2d(self.coeffForFinalAddition_x2d) * x2d;
+            self.sigmoidOn_coeffForFinalAddition_x2d(self.coeffForFinalAddition_x2d * 62.5) * x2d;
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
         ############ rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
