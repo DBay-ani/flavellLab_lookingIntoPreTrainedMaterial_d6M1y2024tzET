@@ -107,11 +107,19 @@ def sample_patches_from_multiple_stacks(datas, patch_size, n_samples, datas_mask
     #                  r[1] - patch_size[1] // 2:r[1] + patch_size[1] - patch_size[1] // 2,
     #                  r[2] - patch_size[2] // 2:r[2] + patch_size[2] - patch_size[2] // 2,
     #                  ] for r in zip(*rand_inds)]) for data in datas]
-    
-    res = [np.stack([data[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size))] for r in
+    restOfImg=[]; [data.clone() for data in datas];
+    res = []; [np.stack([data[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size))] for r in
                      zip(*rand_inds)]) for data in datas]
-    
-    return res
+    for data in datas:
+        indicesEffected=[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size)) for r in
+                     zip(*rand_inds)];
+        res.append(np.stack([data[sliceSpecification] for sliceSpecification in indicesEffected]));
+        thisRestOfImg=np.stack([data.clone() for sliceSpecification in indicesEffected]) + 1; # See comment in loop below for why +1 here.
+        for thisIndx, thisSliceSpecification in enumerate(indicesEffected):
+            thisRestOfImg[tuple( [thisIndx] + list(thisSliceSpecification)) ]=0; # The only place with zero etc. is where
+                                                                                 # it is masked out, so we can infer based on it later.
+        restOfImg.append(thisRestOfImg)
+    return res, restOfImg
 
 
 def sample_patches_from_multiple_stacksSR(datas, patch_size, HRpatch_size, n_samples, datas_mask=None,
@@ -377,6 +385,8 @@ def create_patches(
     ## sample patches from each pair of transformed raw images
     X = np.empty((n_patches,) + tuple(patch_size), dtype=np.float32)
     Y = np.empty_like(X)
+    restImg_X= np.empty((n_patches,) + image_pairs[0].shape, dtype=np.float32)
+    restImg_Y= np.empty((n_patches,) + image_pairs[1].shape, dtype=np.float32)
     
     for i, (x, y, _axes, mask) in tqdm(enumerate(image_pairs), total=n_images, disable=(not verbose)):
         if i >= n_images:
@@ -394,27 +404,36 @@ def create_patches(
         channel is None or patch_size[channel] == x.shape[channel] or _raise(
             ValueError('extracted patches must contain all channels.'))
         
-        _Y, _X = sample_patches_from_multiple_stacks((y, x), patch_size, n_patches_per_image, mask, patch_filter)
+        _Y, _X, _restImg_Y, _restImg_X = sample_patches_from_multiple_stacks((y, x), patch_size, n_patches_per_image, mask, patch_filter)
         
         s = slice(i * n_patches_per_image, (i + 1) * n_patches_per_image)
         X[s], Y[s] = normalization(_X, _Y, x, y, mask, channel)
+        if(mask is not None):
+            raise NotImplementedError();
+        restImg_X[s], restImg_Y[s] = normalization(_restImg_X,_restImg_Y,x,y,mask, channel)
     
     if shuffle:
+        raise NotImplementedError()
         shuffle_inplace(X, Y)
     
     axes = 'SC' + axes.replace('C', '')
     if channel is None:
         X = np.expand_dims(X, 1)
         Y = np.expand_dims(Y, 1)
+        restImg_X=np.expand_dims(restImg_X,1);
+        restImg_Y=np.expand_dims(restImg_Y,1);
     else:
         X = np.moveaxis(X, 1 + channel, 1)
         Y = np.moveaxis(Y, 1 + channel, 1)
+        restImg_Y = np.moveaxis(restImg_Y, 1 + channel, 1)
+        restImg_X = np.moveaxis(restImg_X, 1 + channel, 1)
+
     
     # if save_file is not None:
     #     print('Saving data to %s.' % str(Path(save_file)))
     #     save_training_data(save_file, X, Y, axes)
     
-    return X, Y, axes
+    return X, Y, axes, restImg_X, restImg_Y
 
 
 def create_patchesSR(
