@@ -23,7 +23,7 @@ import loss
 torch.backends.cudnn.enabled = True
 import argparse
 from torch.utils.data import dataloader
-import model
+import models
 
 import os
 from decimal import Decimal
@@ -146,7 +146,7 @@ class UNiFluorInferModule(LightningModule):
     @staticmethod
     def patchNans(val : torch.Tensor, copyIfNonNan:bool=False) -> torch.Tensor:
         if(torch.any(torch.isnan(val))):
-            valReturn=torch.mean(x[~torch.isnan(val)])*torch.ones(val.shape,dtype=val.dtype);
+            valReturn=torch.mean(val[~torch.isnan(val)])*torch.ones(val.shape,dtype=val.dtype);
             valReturn[~torch.isnan(val)] = val[~torch.isnan(val)];
         elif(copyIfNonNan):
             raise NotImplementedError("Ideally would return a copy of the tensor with" + \
@@ -193,7 +193,7 @@ class UNiFluorInferModule(LightningModule):
         self.log(name_step_type+"/step_invoc_num", self.model_step_invocationNum, on_step=True, on_epoch=True);
         self.model_step_invocationNum=self.model_step_invocationNum+1;
 
-        x, y = batch
+        x, y, restOf_x, restOf_y = batch
         xPassForward=x;
         if(torch.any(torch.isnan(x))):
             # xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
@@ -359,8 +359,10 @@ class UNiFluorInferModule(LightningModule):
         optimizer = self.hparams.optimizer( # params=self.trainer.model.parameters())
                 optimizationVals                 )
         if self.hparams.scheduler is not None:
-            scheduler = self.hparams.scheduler(optimizer=optimizer, base_lr=[ x["lr"] * (rateDecrease ** 12)  for x in optimizationVals], 
-                                                                    max_lr= [  x["lr"] * (rateDecrease ** 12)   for x in optimizationVals])
+            scheduler = self.hparams.scheduler(optimizer=optimizer); 
+                # below was sitting around for the CyclicLR scheduler, which is not in use at present but was experimented with.....
+                #### #, base_lr=[ x["lr"] * (rateDecrease ** 12)  for x in optimizationVals], 
+                #### # max_lr= [  x["lr"] * (rateDecrease ** 12)   for x in optimizationVals])
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {

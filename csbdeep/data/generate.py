@@ -4,6 +4,7 @@ from six.moves import range, zip, map, reduce, filter
 from six import string_types
 
 import numpy as np
+from torch import Tensor as torch_Tensor;
 import sys, os, warnings
 
 from tqdm import tqdm
@@ -13,6 +14,7 @@ from ..utils.six import Path
 
 from .transform import Transform, permute_axes, broadcast_target
 
+from src.utils.contracts import requires, ensures ;
 
 ## Patch filter
 def no_background_patches(threshold=0.4, percentile=99.9):
@@ -64,7 +66,10 @@ def no_background_patches(threshold=0.4, percentile=99.9):
 def sample_patches_from_multiple_stacks(datas, patch_size, n_samples, datas_mask=None, patch_filter=None,
                                         verbose=False):
     """ sample matching patches of size `patch_size` from all arrays in `datas` """
-    
+    requires(len(datas) == 2); # one of X, one for Y
+    requires(all([ ( isinstance(x, np.ndarray) or isinstance(x, torch_Tensor)) for x in datas]));
+    requires(all([(len(x.shape)== 3) for x in datas]));
+
     # TODO: some of these checks are already required in 'create_patches'
     len(patch_size) == datas[0].ndim or _raise(ValueError())
     
@@ -107,19 +112,48 @@ def sample_patches_from_multiple_stacks(datas, patch_size, n_samples, datas_mask
     #                  r[1] - patch_size[1] // 2:r[1] + patch_size[1] - patch_size[1] // 2,
     #                  r[2] - patch_size[2] // 2:r[2] + patch_size[2] - patch_size[2] // 2,
     #                  ] for r in zip(*rand_inds)]) for data in datas]
-    restOfImg=[]; [data.clone() for data in datas];
-    res = []; [np.stack([data[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size))] for r in
-                     zip(*rand_inds)]) for data in datas]
+    restOfImg=[]; #  [data.clone() for data in datas];
+    res = []; # [np.stack([data[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size))] for r in
+              #        zip(*rand_inds)]) for data in datas]
     for data in datas:
         indicesEffected=[tuple(slice(_r - (_p // 2), _r + _p - (_p // 2)) for _r, _p in zip(r, patch_size)) for r in
                      zip(*rand_inds)];
         res.append(np.stack([data[sliceSpecification] for sliceSpecification in indicesEffected]));
+        assert(len(res) > 0);
+        assert(isinstance(res[-1], np.ndarray));
+        assert(len(res[-1].shape) == 4);
+        assert(res[-1].shape[1:] == patch_size );
+        assert(res[-1].shape[0] == n_samples);
         thisRestOfImg=np.stack([data.clone() for sliceSpecification in indicesEffected]) + 1; # See comment in loop below for why +1 here.
         for thisIndx, thisSliceSpecification in enumerate(indicesEffected):
             thisRestOfImg[tuple( [thisIndx] + list(thisSliceSpecification)) ]=0; # The only place with zero etc. is where
                                                                                  # it is masked out, so we can infer based on it later.
         restOfImg.append(thisRestOfImg)
-    return res, restOfImg
+
+        assert(len(restOfImg[-1].shape) == 4);
+        assert(restOfImg[-1].shape[0] == n_samples);
+        assert(restOfImg[-1].shape[1:] == data.shape);
+        assert(\
+            all([ \
+                np.all(np.isclose( data[np.where(restOfImg[-1][indx,:,:,:] == 0)], res[-1][indx,:,:,:].flatten() )) \
+                for indx in range(0,n_samples) ] ));
+        # TODO: Put the atol used below somewhere in a configuration file etc.
+        assert(\
+            all([ \
+                np.all(np.isclose( data[np.where(restOfImg[-1][indx,:,:,:] != 0)],\
+                                   restOfImg[-1][indx,:,:,:][np.where(restOfImg[-1][indx,:,:,:] != 0)] -1,
+                                   atol= 0.01 )) \
+                for indx in range(0,n_samples) ] ));
+        
+
+    ensures(isinstance(res,list));
+    ensures(isinstance(restOfImg,list));
+    ensures(len(res)== len(datas));
+    ensures(len(res) == len(restOfImg));
+    ensures(all([ (x.shape[0] == n_samples) for x in res ]));
+    ensures(all([ (x.shape[0] == n_samples) for x in restOfImg ]));
+    
+    return res[0], res[1], restOfImg[0], restOfImg[1];
 
 
 def sample_patches_from_multiple_stacksSR(datas, patch_size, HRpatch_size, n_samples, datas_mask=None,
@@ -385,10 +419,14 @@ def create_patches(
     ## sample patches from each pair of transformed raw images
     X = np.empty((n_patches,) + tuple(patch_size), dtype=np.float32)
     Y = np.empty_like(X)
-    restImg_X= np.empty((n_patches,) + image_pairs[0].shape, dtype=np.float32)
-    restImg_Y= np.empty((n_patches,) + image_pairs[1].shape, dtype=np.float32)
+    restImg_X= None; # np.empty((n_patches,) + image_pairs[0].shape, dtype=np.float32)
+    restImg_Y= None; # np.empty((n_patches,) + image_pairs[1].shape, dtype=np.float32)
     
     for i, (x, y, _axes, mask) in tqdm(enumerate(image_pairs), total=n_images, disable=(not verbose)):
+        if(restImg_X is None):
+            restImg_X = np.empty((n_patches,) + x.shape, dtype=np.float32);
+            restImg_Y = np.empty((n_patches,) + y.shape, dtype=np.float32);
+
         if i >= n_images:
             warnings.warn('more raw images (or transformations thereof) than expected, skipping excess images.')
             break

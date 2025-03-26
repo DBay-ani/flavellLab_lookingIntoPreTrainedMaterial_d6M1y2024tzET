@@ -224,7 +224,7 @@ class ProjectionUpdater(nn.Module):
         self.calls_since_last_redraw += 1
     
     def forward(self, x):
-        raise NotImplemented
+        raise NotImplementedError();
 
 
 class ENLCA(nn.Module):

@@ -156,7 +156,7 @@ class UNiFluorInferDataset(data.Dataset):
                 return "Internal class for forming patches of the data."
 
 
-        patches = create_patches( exampleRawData(), self.patchSize, self.numberOfPatchesPerImage, patch_filter=None);
+        patches = create_patches( exampleRawData(), self.patchSize, self.numberOfPatchesPerImage, patch_filter=None, shuffle=False);
         assert(len(patches) == 5);
 
         # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
