@@ -174,23 +174,18 @@ class UniModel(nn.Module):
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
         return x
     
-    def forward(self, x):
-       
-        # DBayani,m4htw16d15M1y2025tzET, this is the place where things can be put together
-
-        # ~~~~~~~~~~~~ Head ~~~~~~~~~~~~~~~ #
+    def forward_head(self, x):
         x2d, closs = self.project(x)
         x2d = self.check_image_size(x2d)
         self.mean = self.mean.type_as(x2d)
         x2d = (x2d - self.mean) * self.img_range
-        x = self.conv_firstproj(x2d)
+        x = self.conv_firstproj(x2d);
+        return x, x2d; 
 
-        
-        # ~~~~~~~~~~~~ Feature enhancement ~~~~~~~~~~~~~
-        xfe = self.conv_after_body(self.forward_features(x))
-        ### xfe=x;
-        # print("RABBIT:" +str(xfe.shape) + " , " + str(x.shape), flush=True);
+    def forward_middle(self,x):
+        return self.conv_after_body(self.forward_features(x));
 
+    def forward_tail(self, xfe, x2d):
         # ~~~~~~~~~~~~ Tail ~~~~~~~~~~~~~~~ #
         # DBayani m9htw16d15M1y2025tzET
         #
@@ -213,11 +208,44 @@ class UniModel(nn.Module):
         #if(self.finalAdditionOf_x2d):
         #    rightHandSideToReturn=rightHandSideToReturn+x2d;
         ############ rightHandSideToReturn=torch.einsum('ijkl,hj->ihkl',rightHandSideToReturn,self.patchDownSamp);
+        return rightHandSideToReturn;
+
+    def forward(self, xPatch,xComplementPatch ):
+       
+        # DBayani,m4htw16d15M1y2025tzET, this is the place where things can be put together
+
+
+        x2, x2d2 =self.globalModel.forward_head(xComplementPatch);
+
+        mixingFunct=(lambda A,B : A * 0.999 + 0.001 * B);
+        mutualMixFunct = (lambda A, B : ( mixingFunct(A,B),  mixingFunct(B,A)));
+
+        # ~~~~~~~~~~~~ Head ~~~~~~~~~~~~~~~ #
+        x, x2d = self.forward_head(xPatch);
+
+        x,x2=mutualMixFunct(x,x2);   
+        
+        # ~~~~~~~~~~~~ Feature enhancement ~~~~~~~~~~~~~
+        xfe = self.forward_middle(x);
+
+        xfe2= self.globalModel.forward_middle(x2);
+        xfe,xfe2=mutualMixFunct(xfe,xfe2);   
+
+
+
+        # ~~~~~~~~~~~~ Tail ~~~~~~~~~~~~~~~ #
+        rightHandSideToReturn = self.forward_tail(xfe, x2d);
+        rightHandSideToReturn2 = self.globalModel.forward_tail(xfe2, x2d2);
+
+
         sRHS=rightHandSideToReturn.shape;
         # Below, we make a new view since the interpolate function in use expects the first two dimensions to be
         #     batchsize then channels.
         rightHandSideToReturn=interpolate(rightHandSideToReturn.view(sRHS[0],1, sRHS[1], sRHS[2], sRHS[3]), (50,64,64), mode="trilinear")
-        return rightHandSideToReturn
+         
+        rightHandSideToReturn2=interpolate(rightHandSideToReturn2.view(sRHS[0],1, sRHS[1], sRHS[2], sRHS[3]), (50,64,64), mode="trilinear")
+
+        return rightHandSideToReturn, rightHandSideToReturn2;
         
         #x = x / self.img_range + self.mean
         #

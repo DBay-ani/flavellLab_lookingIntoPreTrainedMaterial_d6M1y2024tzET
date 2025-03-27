@@ -3,18 +3,15 @@ from torch import nn
 from typing import List;
 from models.components.UniFMIR.Unimodel import UniModel;
 
+from torch.nn.functional import interpolate ;
+
+
 class My_UNiFMIR_variant(nn.Module):
     """A simple fully-connected neural net for computing predictions."""
 
-    def __init__(
-        self,
-        weights_to_load_in_order: List[str],
-        unimodels 
-    ) -> None:
-        unimodel=unimodels.localModel
-        super().__init__()
-
-        #for x in unimodel.parameters():
+    @staticmethod
+    def _initHelper_loadModelWeights(weights_to_load_in_order, thisModel):
+         #for x in unimodel.parameters():
         #    # print(str(x.flatten()[0]))
         #    x.data = torch.nan * x.data ;
 
@@ -27,7 +24,7 @@ class My_UNiFMIR_variant(nn.Module):
         for thisPath in weights_to_load_in_order:
             print("thisPath:" + str(thisPath),flush=True);
             theseWeights = torch.load(thisPath);
-            for thisName, x in unimodel.named_parameters():
+            for thisName, x in thisModel.named_parameters():
                 # print(str(x.flatten()[0]))
                 if(thisName not in theseWeights):
                     continue;
@@ -63,10 +60,29 @@ class My_UNiFMIR_variant(nn.Module):
         
         print("UNAMED PARAMETERS: " + str(len([x for x in unimodel.parameters()]) - len([ x for x in unimodel.named_parameters()]))  , flush=True);
         """
-        self.model = unimodel.to("cuda:0"); 
-        self.m2 = unimodels.globalModel.to("cuda:0");
+        return ;
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+    def __init__(
+        self,
+        weights_to_load_in_order: List[str],
+        unimodels 
+    ) -> None:
+        super().__init__()
+        self.localModel=unimodels.localModel.to("cuda:0");
+        self.globalModel=unimodels.globalModel.to("cuda:0");
+
+        for thisModel in [self.localModel, self.globalModel]:
+            self._initHelper_loadModelWeights(weights_to_load_in_order, thisModel);
+        
+        # The below line may seem silly, but we need to do this
+        # so we can convieniantly mix the intermediate values of these models in the
+        # "forward" method of the localModel
+        self.localModel.globalModel= self.globalModel; 
+
+        return;
+
+    def forward(self, xPatch: torch.Tensor, xComplementPatch: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.
 
         :param x: The input tensor.
@@ -80,10 +96,10 @@ class My_UNiFMIR_variant(nn.Module):
         # both copies of the model are able to proceed as expected
         # and that the maximum memory used does not exceed what the 
         # GPU has.
-        yInitial= 0.5*(self.model(x) + self.m2(x)); 
+        sXCP= xComplementPatch.shape;
+        sXP=xPatch.shape;
+        resized_xComplementPatch=interpolate(xComplementPatch.view(sXCP[0],1, sXCP[1], sXCP[2], sXCP[3]), (sXP[1], sXP[2], sXP[3]), mode="trilinear").squeeze();
+        yPatch, yFull = self.localModel(xPatch,resized_xComplementPatch );
 
 
-        # yFinal=yInitial.view(batch_size, 1, xSize, ySize, zSize)
-        yFinal=yInitial;
-
-        return yFinal ;
+        return yPatch, yFull ;

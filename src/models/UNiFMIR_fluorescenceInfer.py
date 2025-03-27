@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 rp = os.path.dirname(__file__)
 
 
+from torch.nn.functional import interpolate ;
+
+
 
 class UNiFluorInferModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
@@ -127,13 +130,13 @@ class UNiFluorInferModule(LightningModule):
 
         self.ssim= StructuralSimilarityIndexMeasure();
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, xComplementP: torch.Tensor) -> typing.Tuple[torch.Tensor,torch.Tensor]:
         """Perform a forward pass through the model `self.net`.
 
         :param x: A tensor of images.
         :return: A tensor of logits.
         """
-        return self.net(x)
+        return self.net(x, xComplementP)
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
@@ -194,6 +197,12 @@ class UNiFluorInferModule(LightningModule):
         self.model_step_invocationNum=self.model_step_invocationNum+1;
 
         x, y, restOf_x, restOf_y = batch
+
+        restOf_x=interpolate(restOf_x.view(restOf_x.shape[0],1, restOf_x.shape[1], restOf_x.shape[2], restOf_x.shape[3]), (x.shape[1], x.shape[2], x.shape[3]), mode="trilinear").squeeze();
+        restOf_y=interpolate(restOf_y.view(restOf_y.shape[0],1, restOf_y.shape[1], restOf_y.shape[2], restOf_y.shape[3]), (y.shape[1], y.shape[2], y.shape[3]), mode="trilinear").squeeze();
+
+        assert(x.shape == restOf_x.shape);
+        assert(y.shape == restOf_y.shape);
         xPassForward=x;
         if(torch.any(torch.isnan(x))):
             # xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
@@ -208,7 +217,7 @@ class UNiFluorInferModule(LightningModule):
         lumReduceProp=0.9;
         initialY=y;
         for iterationNum in range(0,20):
-            logits = self.forward(xPassForward);
+            logits, logitsRest = self.forward(xPassForward, restOf_x);
             if(not torch.any(torch.isnan(logits))):
                 break;
             xPassForward=lumReduceProp* xPassForward;
@@ -232,7 +241,8 @@ class UNiFluorInferModule(LightningModule):
         """
         assert(logits.shape == (x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3]));
         logits=logits[:,0,:,:];
-        loss = -self.ssim(logits.reshape(y.shape), y.reshape(y.shape)); #.reshape(y.shape))
+        loss = -self.ssim(logits.reshape(y.shape), y.reshape(y.shape))  + \
+               -self.ssim(logitsRest.reshape(y.shape), restOf_y.reshape(y.shape))  ; #.reshape(y.shape))
         #### logits2= torch.max(torch.zeros(*y.shape), logits - torch.quantile(logits,0.7)) * 100;   #(logits/(torch.max(logits)+0.01)) ** 4;
         #### y2=torch.max(torch.zeros(*y.shape), y - torch.quantile(y,0.7)) * 100    #(y/(torch.max(y)+0.01))**4;
         ### loss =loss-self.ssim(logits2.reshape(y.shape), y2.reshape(y.shape));
@@ -265,7 +275,8 @@ class UNiFluorInferModule(LightningModule):
         ## self.train_acc(preds, targets)
         self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
         ## self.log("train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/param/finalRes", self.net.model.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True, batch_size=1); 
+        self.log("train/param/finalRes_lm", self.net.localModel.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True, batch_size=1); 
+        self.log("train/param/finalRes_lm", self.net.globalModel.coeffForFinalAddition_x2d.data, on_step=False, on_epoch=True, prog_bar=True, batch_size=1); 
         # return loss or backpropagation will fail
         LRs=[x["lr"] for x in self.optimizers().state_dict()["param_groups"]];
         self.log("train/LRs/min", min(LRs), on_step=False, on_epoch=True, prog_bar=True,batch_size=1);
