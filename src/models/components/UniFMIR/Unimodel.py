@@ -204,7 +204,7 @@ class UniModel(nn.Module):
         x = self.conv_lastv(x)
         # Note that the multiplication by 5 below is _not_ the same as tweaking the self.coeff[...]
         # initial value, due to how learning-rates function etc. By  the way:
-        # >>> A(torch.tensor(5))
+        # >>> A(torch.tensor(5))  ### Note that I think A is a sigmoid....
         # tensor(0.9933)
         # and 12.5 * 0.8 == 1
         # 12.5 * 5 == 62.5

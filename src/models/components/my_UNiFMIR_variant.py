@@ -9,9 +9,9 @@ class My_UNiFMIR_variant(nn.Module):
     def __init__(
         self,
         weights_to_load_in_order: List[str],
-        unimodel : nn.Module
+        unimodels 
     ) -> None:
-
+        unimodel=unimodels.localModel
         super().__init__()
 
         #for x in unimodel.parameters():
@@ -64,6 +64,7 @@ class My_UNiFMIR_variant(nn.Module):
         print("UNAMED PARAMETERS: " + str(len([x for x in unimodel.parameters()]) - len([ x for x in unimodel.named_parameters()]))  , flush=True);
         """
         self.model = unimodel.to("cuda:0"); 
+        self.m2 = unimodels.globalModel.to("cuda:0");
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Perform a single forward pass through the network.
@@ -75,7 +76,12 @@ class My_UNiFMIR_variant(nn.Module):
 
         #x = x.view(batch_size, -1)
 
-        yInitial= self.model(x)
+        # Below line is just an example used to check that 
+        # both copies of the model are able to proceed as expected
+        # and that the maximum memory used does not exceed what the 
+        # GPU has.
+        yInitial= 0.5*(self.model(x) + self.m2(x)); 
+
 
         # yFinal=yInitial.view(batch_size, 1, xSize, ySize, zSize)
         yFinal=yInitial;

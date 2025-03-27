@@ -24,34 +24,64 @@ net:
     #  weights_to_load_in_order: ["/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIR2t3_stage2VCD/model_best17.pt"
     # , "/home/david/store1/david/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/SwinIRproj2stg_enlcn_2npzProjection_Flywing/model_best6.pt",
   weights_to_load_in_order: [ "/home/david/store1/david/fluorescenceInferenceAndIntermediateRepresentations_d6M1y2024tzET/lookingIntoPreTrainedMaterial_d6M1y2024tzET/data/modelAndExapleData_UNiFMIR/experiment/Uni-SwinIR/model_best.pt" ]
-  unimodel:
-    _target_: src.models.components.UniFMIR.Unimodel.UniModel
-    img_size: 64
-    depths: [6, 6, 6]
-    num_heads: [6, 6, 6]
-    inch: ${...args.inch}
-    n_colors: ${...args.n_colors}
-    n_feats: ${...args.n_feats}
-    n_resblocks: ${...args.n_resblocks}
-    res_scale: ${...args.res_scale}
-    rgb_range: ${...args.rgb_range}
-    scale: ${...args.scale}
-    patch_size: ${...args.patch_size} #1
-    embed_dim: 90  # 180 // 2
-    window_size: 8
-    mlp_ratio: 2.0
-    qkv_bias: True
-    qk_scale: null
-    drop_rate: 0.0
-    attn_drop_rate: 0.0
-    drop_path_rate: 0.1
-    norm_layer: "torch.nn.LayerNorm"
-    patch_norm: True
-    use_checkpoint: False
-    num_feat: 32
-    srscale: 2
-    initialValForFinaleAdditionOf_x2d: -0.025 # vaguely based on some experimentation.... once it passes through the Sigmoid, it takes value 0.4938 ....
-    train_finaleAdditionOf_x2d: True
+  unimodels:
+    localModel:
+      _target_: src.models.components.UniFMIR.Unimodel.UniModel
+      img_size: 64
+      depths: [6, 6, 6]
+      num_heads: [6, 6, 6]
+      inch: ${....args.inch}
+      n_colors: ${....args.n_colors}
+      n_feats: ${....args.n_feats}
+      n_resblocks: ${....args.n_resblocks}
+      res_scale: ${....args.res_scale}
+      rgb_range: ${....args.rgb_range}
+      scale: ${....args.scale}
+      patch_size: ${....args.patch_size} #1
+      embed_dim: 90  # 180 // 2
+      window_size: 8
+      mlp_ratio: 2.0
+      qkv_bias: True
+      qk_scale: null
+      drop_rate: 0.0
+      attn_drop_rate: 0.0
+      drop_path_rate: 0.1
+      norm_layer: "torch.nn.LayerNorm"
+      patch_norm: True
+      use_checkpoint: False
+      num_feat: 32
+      srscale: 2
+      initialValForFinaleAdditionOf_x2d: -0.025 # vaguely based on some experimentation.... once it passes through the Sigmoid, it takes value 0.4938 ....
+      train_finaleAdditionOf_x2d: True
+
+    globalModel:
+      _target_: src.models.components.UniFMIR.Unimodel.UniModel
+      img_size: ${..localModel.img_size}
+      depths: ${..localModel.depths}
+      num_heads: ${..localModel.num_heads}
+      inch: ${..localModel.inch}
+      n_colors: ${..localModel.n_colors}
+      n_feats: ${..localModel.n_feats}
+      n_resblocks: ${..localModel.n_resblocks}
+      res_scale: ${..localModel.res_scale}
+      rgb_range: ${..localModel.rgb_range}
+      scale: ${..localModel.scale}
+      patch_size: ${..localModel.patch_size}
+      embed_dim: ${..localModel.embed_dim}
+      window_size: ${..localModel.window_size}
+      mlp_ratio: ${..localModel.mlp_ratio}
+      qkv_bias: ${..localModel.qkv_bias}
+      qk_scale: ${..localModel.qk_scale}
+      drop_rate: ${..localModel.drop_rate}
+      attn_drop_rate: ${..localModel.attn_drop_rate}
+      drop_path_rate: ${..localModel.drop_path_rate}
+      norm_layer: ${..localModel.norm_layer}
+      patch_norm: ${..localModel.patch_norm}
+      use_checkpoint: ${..localModel.use_checkpoint}
+      num_feat: ${..localModel.num_feat}
+      srscale: ${..localModel.srscale}
+      initialValForFinaleAdditionOf_x2d: ${..localModel.initialValForFinaleAdditionOf_x2d}
+      train_finaleAdditionOf_x2d: ${..localModel.train_finaleAdditionOf_x2d}
 
   # (channels) * (x,y,z) = 1 * (322, 212, 77)
 
