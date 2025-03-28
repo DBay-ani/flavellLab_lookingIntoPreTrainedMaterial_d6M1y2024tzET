@@ -157,7 +157,7 @@ class UNiFluorInferDataset(data.Dataset):
 
 
         patches = create_patches( exampleRawData(), self.patchSize, self.numberOfPatchesPerImage, patch_filter=None, shuffle=False);
-        assert(len(patches) == 5);
+        assert(len(patches) == 6);
 
         # BELOW LINE ASSUMES THAT THE CALLER WILL NOT MUTATE THE VALUES 
         # PROVIDED IN readNRRDs["obs"] AND readNRRDs["target"]
@@ -167,7 +167,8 @@ class UNiFluorInferDataset(data.Dataset):
             thisTarget=torch.Tensor(patches[1][subInd, :,:,:]).view(*self.patchSize).numpy(); # .to("cuda:0");
             rest_thisObs=torch.Tensor(patches[3][subInd, :,:,:]).view(*readNRRDs["obs"].shape).numpy();
             rest_thisTarget=torch.Tensor(patches[4][subInd, :,:,:]).view(*readNRRDs["target"].shape).numpy();
-            self.priorLoaded[newSubInd]=(thisObs, thisTarget, rest_thisObs, rest_thisTarget); # readNRRDs["obs"], readNRRDs["target"]);
+            orignal_thisObs=torch.Tensor(patches[5][subInd, :,:,:]).view(*readNRRDs["obs"].shape).numpy();
+            self.priorLoaded[newSubInd]=(thisObs, thisTarget, rest_thisObs, rest_thisTarget, orignal_thisObs); # readNRRDs["obs"], readNRRDs["target"]);
         
         return self.priorLoaded[idx]; #readNRRDs["obs"], readNRRDs["target"] ; #, filename
     

@@ -196,20 +196,26 @@ class UNiFluorInferModule(LightningModule):
         self.log(name_step_type+"/step_invoc_num", self.model_step_invocationNum, on_step=True, on_epoch=True);
         self.model_step_invocationNum=self.model_step_invocationNum+1;
 
-        x, y, restOf_x, restOf_y = batch
+        x, y, restOf_x, restOf_y, originalX = batch
 
         restOf_x=interpolate(restOf_x.view(restOf_x.shape[0],1, restOf_x.shape[1], restOf_x.shape[2], restOf_x.shape[3]), (x.shape[1], x.shape[2], x.shape[3]), mode="trilinear").squeeze();
-        restOf_y=interpolate(restOf_y.view(restOf_y.shape[0],1, restOf_y.shape[1], restOf_y.shape[2], restOf_y.shape[3]), (y.shape[1], y.shape[2], y.shape[3]), mode="trilinear").squeeze();
+        # restOf_y=interpolate(restOf_y.view(restOf_y.shape[0],1, restOf_y.shape[1], restOf_y.shape[2], restOf_y.shape[3]), (y.shape[1], y.shape[2], y.shape[3]), mode="trilinear").squeeze();
+        originalX=interpolate(originalX.view(originalX.shape[0],1, originalX.shape[1], originalX.shape[2], originalX.shape[3]), (y.shape[1], y.shape[2], y.shape[3]), mode="trilinear").squeeze();
 
         assert(x.shape == restOf_x.shape);
-        assert(y.shape == restOf_y.shape);
+        assert(y.shape == originalX.shape);
         xPassForward=x;
         if(torch.any(torch.isnan(x))):
             # xPassForward=torch.mean(x[~torch.isnan(x)])*torch.ones(*x.shape);
             # xPassForward[~torch.isnan(x)] = x[~torch.isnan(x)];
             xPassForward=self.patchNans(x);
             xPassForward.require_grad=False;
-        xPassForward=xPassForward + torch.rand(*xPassForward.shape) * 0.02 * torch.mean(xPassForward);
+        noiseMultiplier=0.02;
+        xPassForward=xPassForward + torch.rand(*xPassForward.shape) * noiseMultiplier * torch.mean(xPassForward);
+        # The "restOf_x" was setup so that only the area that awas pulled out has zeros, the rest has a minimum value of 1 (at least)
+        # pre-normalization.
+        whereNonZero=torch.where(restOf_x!=0);
+        restOf_x[whereNonZero]=restOf_x[whereNonZero] + torch.rand(*(restOf_x[whereNonZero].shape)) * noiseMultiplier * torch.mean(restOf_x[whereNonZero]);
 
         self.baseLineLossComp(y, name_step_type+"/pre_lum_reduc/", ["x", "xPF"], [x,xPassForward], y.shape);
 
@@ -230,19 +236,19 @@ class UNiFluorInferModule(LightningModule):
             ["x", "xPF", "y_pre_post"], \
             [x * (lumReduceProp ** iterationNum),xPassForward, initialY], y.shape);
 
-
-        ### utility.compute_psnr_and_ssim(logits, y);
-        
-        ####print("(logits.shape, y.shape):" + str((logits.shape, y.shape)), flush=True);
-
         """
         absDiff= torch.abs(logits- (y-x)); #(y/(x-+1.0))**2);
         loss = torch.sum(absDiff[~torch.isnan(absDiff)]);#torch.max(logits ** 2); # torch.max((logits-y) ** 2) # replaced a torch.sum that was here with a torch.max to see if that addressed the issue with nans appearing# self.criterion(logits, y)
         """
         assert(logits.shape == (x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3]));
         logits=logits[:,0,:,:];
-        loss = -self.ssim(logits.reshape(y.shape), y.reshape(y.shape))  + \
-               -self.ssim(logitsRest.reshape(y.shape), restOf_y.reshape(y.shape))  ; #.reshape(y.shape))
+        loss_inferFlourescence = -self.ssim(logits.reshape(y.shape), y.reshape(y.shape));
+        loss_patchMissing = -self.ssim(logitsRest.reshape(y.shape), originalX.reshape(y.shape))  ; #.reshape(y.shape))
+        
+        for valName, val in [ ("loss_if", loss_inferFlourescence), ("loss_pm", loss_patchMissing)]:
+            self.log(name_step_type+"/"+valName, val, on_step=False, on_epoch=True, prog_bar=False, batch_size=1);
+
+        loss=loss_inferFlourescence + loss_patchMissing;
         #### logits2= torch.max(torch.zeros(*y.shape), logits - torch.quantile(logits,0.7)) * 100;   #(logits/(torch.max(logits)+0.01)) ** 4;
         #### y2=torch.max(torch.zeros(*y.shape), y - torch.quantile(y,0.7)) * 100    #(y/(torch.max(y)+0.01))**4;
         ### loss =loss-self.ssim(logits2.reshape(y.shape), y2.reshape(y.shape));
