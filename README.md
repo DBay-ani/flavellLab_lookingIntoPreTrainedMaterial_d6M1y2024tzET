@@ -1,3 +1,7 @@
+# Also See:
+- https://github.com/DBay-ani/hub_dbayani_flavell_lab
+- https://zenodo.org/records/17345922
+
 <div align="center">
 
 # Lightning-Hydra-Template
